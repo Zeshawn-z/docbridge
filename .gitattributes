@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+# Preserve bundled third-party JavaScript byte-for-byte.
+tools/vendor/*.js -text -diff

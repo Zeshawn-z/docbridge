@@ -1,0 +1,96 @@
+# =============================================================================
+# 模板示例 C：带自动编号的公文式报告
+# -----------------------------------------------------------------------------
+# 演示两件事：
+#   1. 逐级配置标题与正文的格式（字号 / 字体 / 行距 / 段前段后）
+#   2. 标题自动编号——写的是 Word 的列表编号，不是正文里手打的"一、"
+#
+#     python md2docx.py 报告.md -c config/gongwen.yaml
+#
+# 编号方案：一级"一、"，二级"（一）"，三级"1."，四级"(1)"，与公文习惯一致。
+# 生成后增删章节，序号会自动重排；在 Word 里也能被目录和交叉引用识别。
+# =============================================================================
+
+defaults:
+  line_spacing: 1.5                 # 公文行距通常放宽到 1.5 倍
+  space_after: 0
+
+elements:
+  # ---- 正文：三号仿宋是公文标准，这里用宋体并保持首行缩进 2 字符 ----
+  body:
+    size: 小四
+    font_zh: 宋体
+    first_line_indent: 2字符
+    align: both
+    space_after: 4
+
+  # ---- 一级标题：二号黑体居中，段前段后都拉开 ----
+  heading1:
+    size: 三号
+    font_zh: 黑体
+    font_en: Arial
+    align: center
+    space_before: 24
+    space_after: 18
+    keep_with_next: true
+
+  # ---- 二级标题：三号黑体左对齐 ----
+  heading2:
+    size: 四号
+    font_zh: 黑体
+    space_before: 16
+    space_after: 10
+    keep_with_next: true
+
+  # ---- 三级标题：小四黑体 ----
+  heading3:
+    size: 小四
+    font_zh: 黑体
+    space_before: 12
+    space_after: 6
+    keep_with_next: true
+
+  # ---- 四级标题：小四楷体，用字体差而不是字号差来区分 ----
+  heading4:
+    size: 小四
+    font_zh: 楷体
+    space_before: 8
+    space_after: 4
+    keep_with_next: true
+
+  table_text:
+    size: 五号
+  table_header:
+    size: 五号
+    bold: true
+
+  caption:
+    size: 五号
+    align: center
+
+# -----------------------------------------------------------------------------
+# 标题自动编号
+# -----------------------------------------------------------------------------
+# 换成别的方案只要改 preset：decimal（1/1.1/1.1.1）、cn-decimal（一、/1.1）、
+# mixed-cn（（一）/1.1）、cn-chapter（第一章/1.1）、paren（1)/a)）等。
+numbering:
+  headings: on
+  preset: cn-standard               # 一、/ （一）/ 1. / (1)
+  levels: 4                         # 前四级标题参与编号
+  restart: true                     # 回到上一级时子级重新计数
+  strip_text_prefix: true           # 标题里若手写了"一、"，自动剥掉避免重复
+
+page:
+  margin:
+    top: 3.7cm                      # 公文版心
+    bottom: 3.5cm
+    left: 2.8cm
+    right: 2.6cm
+  footer_page_number: true
+
+table:
+  header_fill: "F2F2F2"
+
+output:
+  toc: true
+  toc_levels: "1-3"

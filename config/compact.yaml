@@ -1,0 +1,70 @@
+# =============================================================================
+# 模板示例 B：紧凑汇报稿
+# -----------------------------------------------------------------------------
+# 适合写进邮件正文、塞进 PPT 备注、或者打印成单页速览：整篇五号字、行距收到
+# 1.15 倍、正文不缩进、标题逐级缩小并与正文拉开对比。
+#     python md2docx.py 汇报.md -c config/compact.yaml
+# =============================================================================
+
+defaults:
+  size: 五号                       # 10.5pt
+  line_spacing: 1.15
+
+elements:
+  body:
+    size: 五号
+    first_line_indent: 0字符        # 紧凑稿不缩进，靠段间距分段
+    space_after: 4
+    align: left
+
+  heading1:
+    size: 四号
+    space_before: 10
+    space_after: 4
+    bold: true
+  heading2:
+    size: 小四
+    space_before: 8
+    space_after: 3
+    bold: true
+  heading3:
+    size: 五号
+    space_before: 6
+    space_after: 2
+    bold: true
+
+  list:
+    size: 五号
+    left_indent: 1字符
+    hanging_indent: 1字符
+    level_step_chars: 1
+    space_after: 2
+  list_ordered:
+    size: 五号
+    left_indent: 1字符
+    hanging_indent: 1字符
+    level_step_chars: 1
+    space_after: 2
+
+  code:
+    size: 小五
+
+  table_text:
+    size: 小五
+  table_header:
+    size: 小五
+
+page:
+  margin:
+    top: 2.0cm
+    bottom: 2.0cm
+    left: 2.0cm
+    right: 2.0cm
+
+mermaid:
+  scale: 3
+  font_size: 13
+  max_height: 12厘米               # 图也要压扁，保证一页放得下
+
+table:
+  header_fill: "F7F7F7"

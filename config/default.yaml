@@ -1,0 +1,276 @@
+# =============================================================================
+# md2docx 默认排版配置（唯一默认来源）
+# -----------------------------------------------------------------------------
+# 用法：不要直接改这份文件。复制一份到 config/ 下（例如 config/thesis.yaml），
+# 只写你想改的项，其余自动继承本文件。运行：
+#     python md2docx.py report.md -c config/thesis.yaml
+#
+# 字号可写中文名：初号/小初/一号/小一/二号/小二/三号/小三/四号/小四/五号/小五/六号
+# 也可写磅值：12 或 "12pt"
+# 长度可写："2字符"（东亚版式的字符单位）/ 12 / "0.5cm" / "18pt"
+# 行距：1.25 表示 1.25 倍行距
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 全局默认：所有段落先继承这里，再由下面 elements 里的同名项逐项覆盖
+#
+# 字色说明：全篇默认纯黑 "000000"。这里不能用 OOXML 的 auto——Word 里的
+# `w:color val="auto"` 意思是"交给主题决定"，而 Word 内置样式（标题 1/2/3、
+# 超链接等）各自带主题色（蓝紫色系），凡是没被显式刷过色的文字就会透出主题色。
+# 写死 000000 才能保证 Word / WPS / 各种阅读器里都是黑的。
+# 想改字色就在对应元素下写 color: "333333"。
+# -----------------------------------------------------------------------------
+defaults:
+  font_zh: 宋体                    # 中文（东亚）字体
+  font_en: Times New Roman         # 西文字体
+  size: 小四                       # 12pt
+  bold: false
+  italic: false
+  color: "000000"                  # 纯黑（自动编号的编号本身也走这里）
+  align: left
+  line_spacing: 1.25               # 全篇统一 1.25 倍行距
+  space_before: 0                  # 段前间距（磅）
+  space_after: 0                   # 段后间距（磅）
+  first_line_indent: 0字符         # 全局默认不缩进
+  left_indent: 0字符
+  hanging_indent: 0字符
+  keep_with_next: false
+  keep_lines: false
+  page_break_before: false
+
+# -----------------------------------------------------------------------------
+# 各元素的排版参数（覆盖 defaults）
+# -----------------------------------------------------------------------------
+# 写法约定：**只写与 defaults 不同的项**。
+# 把 defaults 里已有的值在这里再抄一遍，等于把那条全局旋钮废掉——比如 templates
+# 想用 `defaults.line_spacing: 1.5` 统一放宽行距，如果 body 这里又写死了
+# `line_spacing: 1.25`，正文就永远改不动。所以重复即为有害。
+#
+# 每个元素（标题与正文都算）都认识这些参数：
+#   size               字号，如 小四 / 12 / "12pt"
+#   font_zh            中文字体（东亚槽位）
+#   font_en            西文字体（ascii/hAnsi 槽位）
+#   bold / italic      加粗 / 斜体
+#   color              字色，6 位十六进制如 "333333"；"auto" 等同纯黑 000000
+#   align              对齐：left / center / right / both
+#   line_spacing       行距，1.25 表示 1.25 倍
+#   space_before       段前间距（磅），也可写 "0.5cm"
+#   space_after        段后间距（磅）
+#   first_line_indent  首行缩进，"2字符" / "0.74cm" / 0
+#   left_indent        左缩进
+#   hanging_indent     悬挂缩进（与首行缩进互斥）
+#   keep_with_next     与下段同页（标题常用）
+#   keep_lines         段中不分页
+#   page_break_before  段前分页
+#   contextual_spacing 同一样式的相邻段落不额外加间距
+#   outline_level      大纲级别 0~8（标题默认按层级自动设置）
+#   shading            底纹，如 {fill: "F5F5F5"}
+#   borders            边框，如 {left: {style: single, size: 18, space: 8}}
+elements:
+  # 正文：唯一需要首行缩进 2 字符、且两端对齐的元素
+  # 字号/中文字体/西文字体/行距都继承 defaults，不重复声明
+  body:
+    align: both                    # 两端对齐，中文排版标准做法
+    first_line_indent: 2字符
+
+  # 标题：中文黑体、西文 Times New Roman；三级 12 / 二级 14 / 一级 15
+  # 标题不带首行缩进（由 defaults 的 0字符 兜住）
+  # 字号/行距/段前段后都可以逐级单独调，下面每级只写要改的那几项
+  heading1:
+    size: 小三                     # 15pt
+    font_zh: 黑体
+    space_before: 16
+    space_after: 8
+    keep_with_next: true
+    # 想让每章另起一页，在这里加一行 page_break_before: true
+  heading2:
+    size: 四号                     # 14pt
+    font_zh: 黑体
+    space_before: 12
+    space_after: 6
+    keep_with_next: true
+  heading3:
+    size: 小四                     # 12pt
+    font_zh: 黑体
+    space_before: 10
+    space_after: 4
+    keep_with_next: true
+  heading4:
+    size: 小四
+    font_zh: 黑体
+    space_before: 8
+    space_after: 4
+    keep_with_next: true
+  heading5:
+    size: 五号
+    font_zh: 黑体
+    space_before: 6
+    space_after: 3
+    keep_with_next: true
+  heading6:
+    size: 五号
+    font_zh: 黑体
+    space_before: 6
+    space_after: 3
+    keep_with_next: true
+
+  # 列表：只关心缩进，字号/行距/不缩进都随 defaults
+  list:
+    left_indent: 2字符              # 列表整体左缩进
+    hanging_indent: 2字符           # 悬挂缩进 = 符号与文字的距离
+    level_step_chars: 2             # 每加深一级多缩进 2 字符
+  list_ordered:
+    left_indent: 2字符
+    hanging_indent: 2字符
+    level_step_chars: 2
+
+  # 引用块
+  quote:
+    left_indent: 2字符
+    color: "595959"
+    borders:
+      left: {style: single, size: 18, space: 8, color: "BFBFBF"}
+
+  # 代码块：西文换等宽字体，加浅灰底纹
+  code:
+    font_en: Consolas
+    left_indent: 1字符
+    shading: {fill: "F5F5F5"}
+
+  # 表格文字：与正文规格一致，故只做占位声明
+  table_text: {}
+  table_header:
+    bold: true
+    align: center
+
+  # 图注 / 表注
+  caption:
+    size: 五号
+    align: center
+
+  # 分隔线
+  hr:
+    borders:
+      bottom: {style: single, size: 6, space: 1, color: "A6A6A6"}
+
+  # 图片段落（mermaid 图与 markdown 插图都走这里）
+  image:
+    align: center
+    max_width_ratio: 1.0            # 最宽不超过文本栏宽的多少倍
+    max_height: ""                  # 如 "22厘米"；留空表示不限制
+
+# -----------------------------------------------------------------------------
+# 标题自动编号（Word 多级列表编号，不是正文里手写的文本编号）
+# -----------------------------------------------------------------------------
+# 打开之后，1~6 级标题会接进 Word 的编号体系：增删章节时序号自动重排，
+# 目录与交叉引用也能正确识别，和手工敲"一、"完全不是一回事。
+#
+#   headings: off          关闭（默认，保持与以往一致）
+#   headings: on           打开，用 preset 指定的方案
+#   headings: true         同 on；也可以直接写 preset 的名字（如 cn-decimal）
+#
+# 内置预设（写 preset: 名字）：
+#   decimal      1 / 1.1 / 1.1.1              技术文档、说明书
+#   cn-decimal   一、/ 1.1 / 1.1.1            中文论文与报告（最常用）
+#   mixed-cn     （一）/ 1.1 / 1.1.1
+#   cn-nested    一、/ （一）/ 1.
+#   cn-standard  一、/ （一）/ 1. / (1)       公文与标准文件
+#   cn-chapter   第一章 / 1.1 / 1.1.1
+#   paren        1) / a) / i)
+#   roman        I. / I.1 / I.1.1
+#
+# 想让某一级与众不同，用 format 按层级覆盖（num_fmt 见下方说明）：
+#   format:
+#     1: {num_fmt: chineseCounting, text: "第%1章", suff: nothing}
+#     2: {num_fmt: decimal, text: "%1.%2."}
+#
+# num_fmt 取值：decimal / chineseCounting / lowerLetter / upperLetter /
+#               lowerRoman / upperRoman / decimalEnclosedParen / ...
+# text 里的 %1 %2 代表第 1/2 级的序号；suff 是编号与标题文字的分隔，
+# 取 space / nothing / tab。
+#
+# skip_first_level：Markdown 的 `#` 通常被当作整篇主标题（章名），不需要序号，
+#   真正的"第一章"是 `##`。打开后：
+#     `#`   保持一级标题样式，但不参与编号
+#     `##`  接编号第 1 级（cn-decimal 下是 一、）
+#     `###` 接编号第 2 级（1.1），`####` 接第 3 级（1.1.1），以此类推
+#   因为 `#` 不再占用一级，编号的可用深度反而多出一层。format 的键始终按
+#   预设级数算（1 就是预设第 1 项），不随这个开关漂移。
+numbering:
+  headings: off                     # off | on | 预设名（如 cn-decimal）
+  preset: cn-decimal                # 见上方预设清单
+  levels: 3                         # 参与自动编号的最大层级（1~6）
+  skip_first_level: false           # true = 第 1 级标题不编号，第 2 级起编号
+  restart: true                     # 回到上一级时子级序号重新计起
+  strip_text_prefix: true           # 剥掉标题里手写的“一、”“1.”，避免与自动编号重复
+  indent: 0字符                     # 编号相对标题的对齐位置
+  hanging: 0字符                    # 悬挂缩进（编号挂在标题文字左侧时用）
+  format: {}                        # 逐级覆盖，键是 1~6
+
+# -----------------------------------------------------------------------------
+# 页面
+# -----------------------------------------------------------------------------
+page:
+  size: A4
+  orientation: portrait             # portrait | landscape
+  margin:
+    top: 2.54cm
+    bottom: 2.54cm
+    left: 3.0cm
+    right: 3.0cm
+  footer_page_number: false         # 页脚居中页码
+
+# -----------------------------------------------------------------------------
+# 表格样式
+# -----------------------------------------------------------------------------
+table:
+  border: {style: single, size: 4, color: "7F7F7F"}
+  width_pct: 100                    # 表格占文本栏宽度的百分比
+  fixed_layout: false               # true = 按 tblGrid 固定列宽
+  header_fill: "F2F2F2"             # 表头底纹；留空则不填色
+  valign: center                    # 单元格垂直对齐
+  cell_margin: {top: 0.05, bottom: 0.05, left: 0.1, right: 0.1}
+
+# -----------------------------------------------------------------------------
+# Markdown 语义映射
+# -----------------------------------------------------------------------------
+markdown:
+  emphasis_as_bold: true            # *斜体* 一律转成加粗（本次规范要求）
+  strong_as_bold: true              # **加粗** 转成加粗
+  delete: strikethrough             # ~~删除线~~：strikethrough 保留删除线 / text 只留文字
+  link: text                        # 链接：text 只留文字 / hyperlink 真超链接 / text_with_url 文字（网址）
+  link_color: "0563C1"
+  inline_code: mono                 # 行内 `代码`：mono 等宽字体 / plain 普通字体
+  code_font_en: Consolas
+  code_font_zh: 宋体
+  softbreak: auto                   # 源码换行：auto 中文之间不补空格、西文补空格
+  strip_front_matter: true          # 去掉开头的 YAML front matter
+  warn_text_fence: true             # 遇到 ```text 时提醒改用 mermaid
+
+# -----------------------------------------------------------------------------
+# Mermaid 图渲染
+# -----------------------------------------------------------------------------
+mermaid:
+  renderer: auto                    # auto | chrome | mmdc | kroki | off
+  scale: 3                          # 位图放大倍数（3 ≈ 288dpi，够印刷）
+  theme: default                    # default | neutral | forest | dark | base
+  background: "#FFFFFF"
+  font_family: '"Microsoft YaHei","微软雅黑",SimHei,sans-serif'
+  font_size: 14
+  theme_variables: {}               # 透传给 mermaid 的 themeVariables
+  max_width_ratio: 1.0
+  max_height: 22厘米                # 超过就等比缩小，避免图跨页
+  align: center
+  cache_dir: md2docx-assets         # 图片产物目录（相对输出目录）
+  chrome_path: ""                   # 留空自动探测 Chrome/Edge
+  mmdc_path: ""                     # 留空自动探测 mermaid-cli
+  keep_source_on_fail: true         # 渲染失败时退回代码块，不丢内容
+
+# -----------------------------------------------------------------------------
+# 输出
+# -----------------------------------------------------------------------------
+output:
+  toc: false                        # 是否在开头插入目录域（Word 里按 F9 更新）
+  toc_levels: "1-3"
+  title: ""                         # 文档属性-标题
+  author: ""                        # 文档属性-作者

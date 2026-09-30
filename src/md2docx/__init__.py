@@ -1,0 +1,4 @@
+"""md2docx：把标准 Markdown 转成排版规范的 docx。"""
+
+__version__ = "1.1.0"
+__all__ = ["__version__"]

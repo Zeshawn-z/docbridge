@@ -1,0 +1,77 @@
+# Python environments and caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# Local tools, settings, backups and scratch work
+.workbuddy/
+.codex/
+.agents/
+.integration-backup/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+_scratch/
+scratch/
+tmp/
+temp/
+integration_stage/
+rename_stage/
+installer-smoke/
+test-runtime/
+*.log
+*.tmp
+*.temp
+*.bak
+*.part
+.DS_Store
+Thumbs.db
+
+# Builds and generated icons
+build/
+build-*/
+dist/
+*.exe
+*.zip
+*.msi
+*.spec.bak
+packaging/md2docx.ico
+
+# Downloaded optional engines
+runtime/
+downloads/
+runtime-extract/
+
+# Local documents and exported conversion outputs
+*.docx
+*.doc
+*.pdf
+~$*
+*_images/
+md2docx-assets/
+/*个人报告*.md
+
+# Local tests and fixtures are intentionally not published
+tests/
+test_*.py
+*_test.py
+tools/*.py
+/examples/*
+!/examples/quickstart.md
+tools/vendor/mermaid.esm.min.mjs
+
+# Publish only documentation screenshots referenced by the README
+/docs/*.png
+!/docs/workbench-markdown.png
+!/docs/workbench-word.png
+!/docs/workbench-advanced.png
+!/docs/workbench-doc-support.png

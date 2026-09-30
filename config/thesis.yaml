@@ -1,0 +1,54 @@
+# =============================================================================
+# 模板示例 A：学位论文 / 正式报告
+# -----------------------------------------------------------------------------
+# 只写要改的项，其余继承 config/default.yaml。
+#     python md2docx.py 论文.md -c config/thesis.yaml
+#
+# 相对默认规范的差异：行距放宽到 1.5 倍、一级标题居中且另起一页、表格字号
+# 降到五号、开启页码与目录。
+# =============================================================================
+
+defaults:
+  line_spacing: 1.5
+
+elements:
+  heading1:
+    align: center                  # 一级标题居中
+    page_break_before: true        # 每章另起一页
+    space_before: 24
+    space_after: 18
+  heading2:
+    space_before: 18
+    space_after: 10
+  heading3:
+    space_before: 12
+    space_after: 8
+
+  table_text:
+    size: 五号                     # 表格里字号降一档，避免表格超宽
+  table_header:
+    size: 五号
+    bold: true
+
+  caption:
+    size: 五号
+
+page:
+  margin:
+    top: 3.0cm
+    bottom: 2.5cm
+    left: 3.2cm
+    right: 3.2cm
+  footer_page_number: true         # 页脚居中页码
+
+table:
+  header_fill: "EFEFEF"
+  cell_margin: {top: 0.08, bottom: 0.08, left: 0.12, right: 0.12}
+
+mermaid:
+  theme: neutral
+  max_height: 20厘米
+
+output:
+  toc: true                        # 开头插入目录域（Word 里按 F9 更新）
+  toc_levels: "1-2"

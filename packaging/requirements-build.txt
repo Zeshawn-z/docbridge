@@ -1,0 +1,4 @@
+# 打包 exe 需要的依赖：运行时依赖 + PyInstaller
+#   python -m pip install -r packaging/requirements-build.txt
+-r ../requirements.txt
+pyinstaller>=6.6
