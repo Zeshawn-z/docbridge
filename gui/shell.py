@@ -1,12 +1,13 @@
 """Navigation shell. Features own their conversion pages and task state."""
 import sys
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QFrame, QLabel, QPushButton, QStackedWidget, QMessageBox)
 from .icons import icon
 from .widgets import app_pixmap
 from .styles import STYLES
-from .window_chrome import FramelessWindow, TitleBar
+from .window_chrome import FramelessWindow, WindowControls
 from .conversion_page import ConversionPage
 from .features import available_features
 
@@ -41,16 +42,16 @@ class MainWindow(FramelessWindow):
         if not features or len({f.key for f in features}) != len(features):
             raise ValueError('转换功能必须有唯一标识，且至少提供一个功能。')
         central = QWidget()
+        central.setObjectName('appSurface')
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        self.title_bar = TitleBar(self)
-        layout.addWidget(self.title_bar)
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(0)
         sidebar = QFrame()
+        self.sidebar = sidebar
         sidebar.setObjectName('sidebar')
         sidebar.setFixedWidth(220)
         side = QVBoxLayout(sidebar)
@@ -58,15 +59,15 @@ class MainWindow(FramelessWindow):
         side.setSpacing(15)
         logo = QLabel()
         logo.setPixmap(self.windowIcon().pixmap(42, 42))
+        logo.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         side.addWidget(logo)
-        brand = QLabel('DocBridge')
-        brand.setObjectName('brand')
-        side.addWidget(brand)
         side.addSpacing(30)
+        self.register_drag_area(sidebar)
         self.page_stack = QStackedWidget()
         for feature in features:
             page = ConversionPage(feature, self)
             self.pages[feature.key] = page
+            self.register_drag_area(page.header)
             self.page_stack.addWidget(page)
             button = QPushButton(feature.title)
             button.setIcon(icon(feature.icon_name, '#a9bedf'))
@@ -79,7 +80,20 @@ class MainWindow(FramelessWindow):
         content.addWidget(sidebar)
         content.addWidget(self.page_stack, 1)
         layout.addLayout(content, 1)
+        self.window_controls = WindowControls(self)
+        self.window_controls.setParent(central)
+        self.position_controls()
+        self.sync_corner_style()
         self.switch_mode(features[0].key)
+
+    def position_controls(self):
+        if hasattr(self, 'window_controls'):
+            self.window_controls.move(self.width() - self.window_controls.width() - 20, 23)
+            self.window_controls.raise_()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.position_controls()
 
     def switch_mode(self, mode):
         if mode not in self.pages:
@@ -88,6 +102,7 @@ class MainWindow(FramelessWindow):
         self.page_stack.setCurrentWidget(self.pages[mode])
         for key, button in self.mode_buttons.items():
             button.setChecked(key == mode)
+        self.window_controls.raise_()
 
     def dragEnterEvent(self, event):
         self.current_page.dragEnterEvent(event)

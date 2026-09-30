@@ -1,6 +1,6 @@
 """Frameless window controls and OS-supported dragging/resizing."""
 from PySide6.QtCore import Qt, QEvent, QSize
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QMainWindow, QApplication, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QMainWindow, QApplication, QWidget
 from .icons import icon
 
 
@@ -27,23 +27,15 @@ class WindowButton(QPushButton):
         super().leaveEvent(event)
 
 
-class TitleBar(QFrame):
+class WindowControls(QFrame):
     def __init__(self, window):
         super().__init__(window)
         self.host = window
-        self.anchor = None
-        self.setObjectName('titleBar')
-        self.setFixedHeight(44)
+        self.setObjectName('windowControls')
+        self.setFixedSize(138, 40)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(14, 0, 2, 0)
-        layout.setSpacing(8)
-        mark = QLabel()
-        mark.setPixmap(window.windowIcon().pixmap(22, 22))
-        title = QLabel(window.windowTitle())
-        for label in (mark, title):
-            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            layout.addWidget(label)
-        layout.addStretch()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         self.minimize = WindowButton('minimize', '最小化', window.showMinimized, self)
         self.maximize = WindowButton('maximize', '最大化', self.toggle_maximized, self)
         self.close_button = WindowButton('close', '关闭', window.close, self)
@@ -65,42 +57,30 @@ class TitleBar(QFrame):
         self.maximize.setToolTip(title)
         self.maximize.setAccessibleName(title)
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            handle = self.host.windowHandle()
-            if not handle or not handle.startSystemMove():
-                self.anchor = event.globalPosition().toPoint() - self.host.pos()
-            event.accept()
-        else:
-            super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self.anchor is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            self.host.move(event.globalPosition().toPoint() - self.anchor)
-        else:
-            super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self.anchor = None
-        super().mouseReleaseEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.toggle_maximized()
-            event.accept()
-        else:
-            super().mouseDoubleClickEvent(event)
-
-
 class FramelessWindow(QMainWindow):
     RESIZE_MARGIN = 6
 
     def __init__(self):
         super().__init__()
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._drag_areas = set()
+        self._drag_anchor = None
         self._resize_widget = None
         self._resize_cursor = None
         QApplication.instance().installEventFilter(self)
+
+    def register_drag_area(self, widget):
+        self._drag_areas.add(widget)
+
+    def sync_corner_style(self):
+        square = self.isMaximized() or self.isFullScreen()
+        for widget in self.findChildren(QWidget):
+            if widget.objectName() in ('sidebar', 'workspace'):
+                widget.setProperty('square', square)
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
 
     def enable_resize_tracking(self):
         self.setMouseTracking(True)
@@ -146,9 +126,26 @@ class FramelessWindow(QMainWindow):
                     else:
                         cursor = Qt.CursorShape.SizeHorCursor if horizontal else Qt.CursorShape.SizeVerCursor
                     watched.setCursor(cursor)
+        if watched in self._drag_areas:
+            if event.type() == QEvent.Type.MouseButtonDblClick and event.button() == Qt.MouseButton.LeftButton:
+                self.window_controls.toggle_maximized()
+                return True
+            if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+                handle = self.windowHandle()
+                if not handle or not handle.startSystemMove():
+                    self._drag_anchor = event.globalPosition().toPoint() - self.pos()
+                return True
+            if event.type() == QEvent.Type.MouseMove and self._drag_anchor is not None:
+                if event.buttons() & Qt.MouseButton.LeftButton:
+                    self.move(event.globalPosition().toPoint() - self._drag_anchor)
+                    return True
+            if event.type() == QEvent.Type.MouseButtonRelease:
+                self._drag_anchor = None
         return False
 
     def changeEvent(self, event):
         super().changeEvent(event)
-        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, 'title_bar'):
-            self.title_bar.sync_state()
+        if event.type() == QEvent.Type.WindowStateChange:
+            self.sync_corner_style()
+            if hasattr(self, 'window_controls'):
+                self.window_controls.sync_state()

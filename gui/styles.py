@@ -1,7 +1,9 @@
 STYLES = '''
 QWidget { color: #25334b; font-family: "Microsoft YaHei UI", "Segoe UI"; font-size: 13px; }
-QMainWindow, QWidget#workspace { background: #f3f5f9; }
-QFrame#sidebar { background: #111e36; border: none; }
+QMainWindow, QWidget#appSurface { background: transparent; }
+QWidget#workspace { background: #f3f5f9; border-top-right-radius: 14px; border-bottom-right-radius: 14px; }
+QFrame#sidebar { background: #111e36; border: none; border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
+QWidget#workspace[square="true"], QFrame#sidebar[square="true"] { border-radius: 0; }
 QFrame#sidebar QLabel { color: #94a5bf; background: transparent; }
 QFrame#sidebar QLabel#brand { color: #ffffff; font-size: 19px; font-weight: 600; }
 QFrame#sidebar QLabel#sideTitle { color: #f1f5fb; font-size: 15px; font-weight: 600; }
@@ -62,8 +64,8 @@ QListWidget::item:hover { background: #f0f4fa; }
 QGroupBox { border: 1px solid #e2e7ef; border-radius: 7px; margin-top: 13px; padding-top: 13px; font-weight: 600; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
 
-QFrame#titleBar { background: #f3f5f9; border-bottom: 1px solid #e1e7ef; }
-QPushButton#windowControl, QPushButton#windowClose { border: none; border-radius: 0; background: transparent; padding: 0; min-height: 0; }
+QFrame#windowControls { background: transparent; border: none; }
+QPushButton#windowControl, QPushButton#windowClose { border: none; border-radius: 7px; background: transparent; padding: 0; min-height: 0; }
 QPushButton#windowControl:hover { background: #e3e9f2; }
 QPushButton#windowClose:hover { background: #e81123; }
 '''

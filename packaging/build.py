@@ -21,7 +21,14 @@ DOC_IMAGES = ('workbench-markdown.png', 'workbench-word.png',
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, cwd=ROOT, **kwargs)
+    try:
+        return subprocess.run(command, check=True, cwd=ROOT, **kwargs)
+    except subprocess.CalledProcessError as exc:
+        for output in (exc.stdout, exc.stderr):
+            if output:
+                print(output.decode('utf-8', errors='replace') if isinstance(output, bytes) else output,
+                      file=sys.stderr, flush=True)
+        raise
 
 
 def validate_artifacts():
@@ -44,8 +51,14 @@ def validate_artifacts():
         if 'DocBridge' not in (exported / 'document.md').read_text(encoding='utf-8'):
             raise RuntimeError('Word to Markdown artifact check failed')
         snapshot = folder / 'window.png'
-        run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot)],
-            capture_output=True, timeout=90, creationflags=flags)
+        try:
+            run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot)],
+                capture_output=True, timeout=90, creationflags=flags)
+        except subprocess.CalledProcessError:
+            log = Path(str(snapshot) + '.log')
+            if log.is_file():
+                print(log.read_text(encoding='utf-8'), file=sys.stderr, flush=True)
+            raise
         if not snapshot.is_file() or snapshot.stat().st_size < 5000:
             raise RuntimeError('GUI artifact check failed')
 
