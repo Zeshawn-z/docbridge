@@ -175,6 +175,11 @@ class ConversionPage(QWidget):
         self.overwrite = QCheckBox('覆盖已有转换结果')
         settings.addWidget(self.overwrite)
         self.overwrite.setToolTip('未勾选时，重名结果自动添加编号。')
+        create_output_options = getattr(self.feature, 'create_output_options', None)
+        self.output_options = create_output_options(self) if create_output_options else None
+        if self.output_options is not None:
+            settings.addSpacing(8)
+            settings.addWidget(self.output_options)
         settings.addSpacing(12)
         settings.addStretch()
         mode_page = QWidget()
@@ -225,6 +230,8 @@ class ConversionPage(QWidget):
                          self.convert_button, select]
         if self.options is not None and getattr(self.options, 'lock_during_conversion', True):
             self.controls.append(self.options)
+        if self.output_options is not None:
+            self.controls.append(self.output_options)
         self.add_button.clicked.connect(self.add_files)
         self.folder_button.clicked.connect(self.add_folder)
         self.remove_button.clicked.connect(self.remove_selected)
@@ -379,8 +386,11 @@ class ConversionPage(QWidget):
         self.progress.setValue(0)
         self.convert_button.setText('正在转换…')
         self.summary.setText('转换进行中')
+        settings = dict(self.feature.read_options(self.options))
+        if self.output_options is not None:
+            settings.update(self.output_options.values())
         self.worker = ConversionWorker(self.files, self.output.text().strip() or None, self.overwrite.isChecked(),
-                                       self.feature.convert, self.feature.read_options(self.options), self)
+                                       self.feature.convert, settings, self)
         self.worker.log_message.connect(self.log.appendPlainText)
         self.worker.file_started.connect(self.on_started)
         self.worker.file_result.connect(self.on_result)
@@ -453,7 +463,8 @@ class ConversionPage(QWidget):
             self.source.setPlainText(text)
             self.preview.document().setBaseUrl(QUrl.fromLocalFile(str(preview_path.parent) + '/'))
             self.preview.setSearchPaths([str(preview_path.parent)])
-            self.preview.setMarkdown(text)
+            from .formula_preview import show_markdown
+            show_markdown(self.preview, text)
             self.restore_preview_anchors(text)
         except OSError as exc:
             self.preview.setHtml('<p>无法读取结果：' + html.escape(str(exc)) + '</p>')

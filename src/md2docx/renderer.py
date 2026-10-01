@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import os
 import re
+import io
+import json
 from urllib.parse import unquote
 from dataclasses import dataclass, replace
 
@@ -23,6 +25,8 @@ from docx.oxml.ns import qn
 from docx.shared import Emu
 from docx.text.run import Run
 from markdown_it import MarkdownIt
+from docbridge_math import FormulaError, latex_to_omml, render_png
+from docbridge_math.markdown import install_math_rules
 
 from . import ooxml
 from .config import element_style, heading_numbering
@@ -92,10 +96,11 @@ class MarkdownToDocx:
         self.log = log
         self.warnings: list[str] = []
         self.counters = {"paragraph": 0, "heading": 0, "table": 0, "list": 0,
-                         "code": 0, "mermaid": 0, "image": 0}
+                         "code": 0, "mermaid": 0, "image": 0, "formula": 0}
 
         self.md = MarkdownIt("commonmark", {"html": False, "linkify": False})
         self.md.enable(["table", "strikethrough"])
+        install_math_rules(self.md)
 
         self.doc = Document()
         self.text_width_emu = 0
@@ -297,6 +302,10 @@ class MarkdownToDocx:
             elif t == "code_inline":
                 self._add_run(paragraph, tok.content, replace(ctx, mono=True), char)
                 last_char = tok.content[-1:]
+            elif t in ('math_inline', 'math_inline_double'):
+                self._render_formula(tok.content, paragraph, char,
+                                     display=t == 'math_inline_double')
+                last_char = 'x'
             elif t == "softbreak":
                 mode = md_cfg["softbreak"]
                 nxt = self._next_text_char(tokens, idx)
@@ -344,6 +353,40 @@ class MarkdownToDocx:
         return ""
 
     # ------------------------------------------------------------------ 图片
+    def _render_formula(self, source, paragraph, char, display=False):
+        mode = self.cfg.get('math', {}).get('mode', 'omml')
+        size = float(char.get('size_pt') or parse_size(
+            element_style(self.cfg, 'body').get('size', '小四')))
+        try:
+            if mode == 'text':
+                self._add_run(paragraph, ('$$' if display else '$') + source +
+                              ('$$' if display else '$'), RunCtx(), char)
+                return
+            if mode == 'omml':
+                paragraph._p.append(latex_to_omml(source, display, size))
+            else:
+                image = render_png(source, display, size)
+                width = image.width_pt * 12700
+                height = image.height_pt * 12700
+                scale = min(1.0, self.text_width_emu / width)
+                run = paragraph.add_run()
+                shape = run.add_picture(io.BytesIO(image.data),
+                    width=Emu(round(width * scale)), height=Emu(round(height * scale)))
+                # Preserve the source of our own PNGs for a later export to MD.
+                shape._inline.docPr.set('descr', 'DocBridgeFormula:' + json.dumps(
+                    {'latex': source, 'display': bool(display)}, ensure_ascii=False))
+                shape._inline.docPr.set('title', '公式')
+                if not display:
+                    position = OxmlElement('w:position')
+                    position.set(qn('w:val'), str(-round(image.depth_pt * scale * 2)))
+                    run._r.get_or_add_rPr().append(position)
+                self.counters['image'] += 1
+            self.counters['formula'] += 1
+        except FormulaError as exc:
+            self.warnings.append(f'公式转换失败，已保留 LaTeX 源码：{exc}')
+            self._add_run(paragraph, ('$$' if display else '$') + source +
+                          ('$$' if display else '$'), RunCtx(), char)
+
     def _image_display_size(self, path: str, cfg: dict, natural_px=None):
         """按 96dpi 基准折算显示尺寸，再按文本栏宽/最大高度等比缩放。"""
         limit_w = int(self.text_width_emu * float(cfg.get("max_width_ratio", 1.0)))
@@ -455,6 +498,13 @@ class MarkdownToDocx:
         while i < end:
             tok = tokens[i]
             t = tok.type
+            if t == 'math_block':
+                para, char = self._new_paragraph('body')
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                para.paragraph_format.first_line_indent = Emu(0)
+                self._render_formula(tok.content.strip(), para, char, display=True)
+                i += 1
+                continue
             if t == "heading_open":
                 level = int(tok.tag[1])
                 key = f"heading{min(level, 6)}"

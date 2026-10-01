@@ -25,6 +25,8 @@ def main(argv=None):
     parser.add_argument('-o', '--output', help='输出目录，默认保存到每份原文件所在目录')
     parser.add_argument('-r', '--recursive', action='store_true', help='包含子目录')
     parser.add_argument('--overwrite', action='store_true', help='覆盖已有结果；默认同步添加编号')
+    parser.add_argument('--math-mode', choices=('latex', 'image'), default='latex',
+                        help='公式：latex 保留公式结构（默认）/ image 导出 PNG 图片')
     args = parser.parse_args(argv)
     if args.download_engine:
         from .runtime import install_runtime
@@ -52,7 +54,7 @@ def main(argv=None):
     failed = 0
     for path in files:
         try:
-            result = convert_file(path, args.output, overwrite=args.overwrite)
+            result = convert_file(path, args.output, overwrite=args.overwrite, math_mode=args.math_mode)
             print(f'完成：{result.markdown}（{result.image_count} 张图片）')
             for warning in result.warnings:
                 print('  提示：' + warning)

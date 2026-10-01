@@ -7,6 +7,7 @@ Word 与 Markdown 双向转换工具，提供 Windows 图形界面和命令行�
 - Markdown 转 Word：模板排版、正文及标题 1–6 级样式、目录、页码、编号、列表、表格和图片。
 - Word 转 Markdown：按原标题层级导出，保留粗体、斜体、列表、链接和表格；图片导出并重映射相对路径。
 - 自动目录按正文标题重建为可点击目录；合并单元格表格使用 HTML 保留结构。
+- 公式双向转换：Markdown 公式可生成可编辑 Word 公式或 PNG；Word 原生公式可导出 LaTeX 或 PNG。
 - 批量添加、目录导入、拖放、预览与日志。两个方向的队列、结果及任务状态相互独立。
 - 圆角无边框窗口，左侧保留 M 图标与功能入口；窗口按钮位于右上角，没有独立标题栏，支持拖动与缩放。
 - 旧版 `.doc` 使用可选 LibreOffice 引擎，默认不包含、不下载，也不启动引擎。
@@ -53,6 +54,29 @@ Markdown 转 Word 暂不解析 HTML 合并表格。手工输入、没有目录�
 `config/` 提供通用、论文、公文和紧凑模板。便携程序旁的同名模板可覆盖内置模板。
 Mermaid 图使用系统 Chrome 或 Edge 本地渲染；缺少渲染工具时会保留源码。
 
+## 公式
+
+在两个转换页面的“输出”页选择“公式格式”。Markdown 转 Word 默认沿用模板，内置模板使用
+可编辑的 Word 原生公式（OMML）；也可选 PNG 图片或保留 LaTeX 源码。Word 转 Markdown
+默认输出 LaTeX，也可选 PNG；图片保存到 `文档名_images/`，链接使用相对路径。
+
+支持 `$...$`、`$$...$$`、`\(...\)`、`\[...\]`，包括分式、根号、上下标、求和、积分、
+矩阵和常见重音符号。代码块和行内代码不解析为公式。独立公式居中，行内公式保留在原段落中；
+GUI 预览会显示公式，源码页仍保留 Markdown。图片以 288 dpi 渲染，运行时无需网络、TeX 或 Office。
+
+```markdown
+行内公式 $x_1^2$。
+
+$$
+\frac{a}{b} + \sqrt{x}
+$$
+```
+
+未知 LaTeX 命令或渲染失败时保留源码并报告提示。不能转换的 Word 公式保留原始 OMML XML
+到同名资源目录并提供链接。Word 导出图片失败时退回 LaTeX。DocBridge 生成的公式 PNG
+保留了源码，之后可重新导出为 LaTeX；普通公式截图不执行 OCR，仍按图片处理。
+支持范围是数学表达式，不是完整 TeX 文档或任意自定义宏。
+
 ## 可选的 .doc 支持
 
 在 Word 转 Markdown 的“.doc 支持”页点击“下载并启用”，才会下载官方 LibreOffice 引擎。
@@ -71,10 +95,12 @@ Mermaid 图使用系统 Chrome 或 Edge 本地渲染；缺少渲染工具时会�
 # Markdown 转 Word
 .venv\Scripts\python.exe md2docx.py 报告.md
 .venv\Scripts\python.exe md2docx.py 报告.md -c config\thesis.yaml
+.venv\Scripts\python.exe md2docx.py 报告.md --math-mode image
 
 # Word 转 Markdown，默认输出到原目录
 .venv\Scripts\python.exe docx2md.py 报告.docx
 .venv\Scripts\python.exe docx2md.py 文档目录 -r -o 输出目录
+.venv\Scripts\python.exe docx2md.py 报告.docx --math-mode image
 
 # 用户主动下载并启用 .doc 引擎
 .venv\Scripts\python.exe docx2md.py --download-engine

@@ -17,7 +17,7 @@ class ReportResult:
     counters: dict = field(default_factory=dict)
 
 
-def convert_markdown(source, output_dir=None, *, overwrite=False, template=None, overrides=None, log=None):
+def convert_markdown(source, output_dir=None, *, overwrite=False, template=None, overrides=None, log=None, math_mode=None):
     source = Path(source).expanduser().resolve()
     if not source.is_file() or source.suffix.lower() not in ('.md', '.markdown'):
         raise ValueError(f'不是有效的 Markdown 文件：{source}')
@@ -32,7 +32,10 @@ def convert_markdown(source, output_dir=None, *, overwrite=False, template=None,
     temporary = directory / f'.report-{uuid4().hex}.docx'
     converter = None
     try:
-        config = load_config(template, overrides or {})
+        overrides = dict(overrides or {})
+        if math_mode is not None:
+            overrides['math.mode'] = math_mode
+        config = load_config(template, overrides)
         converter = MarkdownToDocx(config, str(source), str(temporary), log=log or (lambda *_: None))
         converter.render(source.read_text(encoding='utf-8-sig'))
         converter.save()

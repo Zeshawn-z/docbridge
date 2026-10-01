@@ -264,6 +264,11 @@ def _validate(config: dict) -> None:
     out.setdefault("toc", False)
     out.setdefault("overwrite", True)
 
+    math = config.setdefault('math', {})
+    if not isinstance(math, dict) or math.get('mode', 'omml') not in ('omml', 'image', 'text'):
+        raise ConfigValueError('math.mode 只能是 omml / image / text')
+    math.setdefault('mode', 'omml')
+
     page = config.setdefault("page", {})
     page.setdefault("size", "A4")
     page.setdefault("footer_page_number", False)

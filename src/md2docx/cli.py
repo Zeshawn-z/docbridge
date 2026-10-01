@@ -81,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--set", dest="sets", action="append",
                         metavar="KEY=VALUE", help="临时覆盖配置，可重复，如 --set page.size=A4")
     parser.add_argument("--no-mermaid", action="store_true", help="不渲染 mermaid，原样输出代码块")
+    parser.add_argument('--math-mode', choices=('omml', 'image', 'text'),
+                        help='公式：omml 可编辑 Word 公式（默认）/ image 图片 / text LaTeX 源码')
     parser.add_argument("--show-config", action="store_true", help="打印合并后的配置后退出")
     parser.add_argument("--show-paths", action="store_true",
                         help="打印资源路径与冻结状态后退出（排查打包问题用）")
@@ -99,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     overrides = _parse_set(args.sets)
+    if args.math_mode:
+        overrides['math.mode'] = args.math_mode
     if args.no_mermaid:
         overrides["mermaid.renderer"] = "off"
     try:

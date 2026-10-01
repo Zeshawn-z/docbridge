@@ -1,9 +1,10 @@
-"""Convert Word OOXML using only the Python standard library."""
+"""Read Word OOXML, using the independent formula backend for Office Math."""
 from __future__ import annotations
 
 from .legacy import convert_legacy_doc
 
 import hashlib
+import json
 from copy import deepcopy
 import html
 import os
@@ -17,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from xml.etree import ElementTree as ET
+from docbridge_math import FormulaError, omml_to_latex, render_png
 
 NS = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
       'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
@@ -46,7 +48,7 @@ class ConversionResult:
 
 
 class DocxReader:
-    def __init__(self, source, destination, output_stem=None):
+    def __init__(self, source, destination, output_stem=None, math_mode='latex'):
         self.archive = zipfile.ZipFile(source)
         self.destination = destination
         self.output_stem = output_stem or Path(source).stem
@@ -56,6 +58,7 @@ class DocxReader:
         self.warnings = []
         self.images = {}
         self.counters = {}
+        self.math_mode = math_mode
         try:
             if sum(i.file_size for i in self.archive.infolist()) > 512 * 1024 * 1024:
                 raise ValueError('文档解压后超过 512 MB，无法转换。')
@@ -160,6 +163,16 @@ class DocxReader:
             elif child.tag in (tag('w:drawing'), tag('w:pict')):
                 desc = next((e.get('descr') or e.get('title') for e in child.iter()
                              if e.tag.endswith('}docPr') and (e.get('descr') or e.get('title'))), '图片')
+                if self.math_mode == 'latex' and desc.startswith('DocBridgeFormula:'):
+                    try:
+                        formula = json.loads(desc[len('DocBridgeFormula:'):])
+                        if isinstance(formula.get('latex'), str) and formula['latex'].strip():
+                            pieces.append(self.formula_text(formula['latex'], bool(formula.get('display')), as_html))
+                            continue
+                    except (ValueError, TypeError, AttributeError):
+                        pass
+                if desc.startswith('DocBridgeFormula:'):
+                    desc = '公式'
                 for blip in child.findall('.//a:blip', NS):
                     pieces.append(self.image(value(blip, 'r:embed') or value(blip, 'r:link'), desc, as_html))
                 for im in child.findall('.//v:imagedata', NS):
@@ -212,9 +225,47 @@ class DocxReader:
             elif child.tag in (tag('w:ins'), tag('w:smartTag'), tag('w:sdt'), tag('w:sdtContent'), tag('w:fldSimple')):
                 parts.append(self.inline(child, chain, as_html))
             elif child.tag.endswith('}oMath') or child.tag.endswith('}oMathPara'):
-                self.warn('公式保留为纯文本，未转换为 LaTeX。')
-                parts.append(escape(''.join(child.itertext())))
+                parts.append(self.formula(child, as_html))
         return ''.join(parts)
+
+    @staticmethod
+    def formula_text(latex, display, as_html=False):
+        text = ('$$\n' + latex + '\n$$') if display else ('$' + latex + '$')
+        return html.escape(text) if as_html else text
+
+    def formula(self, element, as_html=False):
+        display = element.tag.endswith('}oMathPara')
+        try:
+            latex = omml_to_latex(element)
+        except FormulaError as exc:
+            # Keep the original structure as a sidecar when the backend cannot
+            # express it, so unsupported equations are never silently discarded.
+            data = ET.tostring(element, encoding='utf-8', xml_declaration=True)
+            digest = hashlib.sha256(data).hexdigest()[:12]
+            folder = self.destination / self.image_folder
+            folder.mkdir(exist_ok=True)
+            filename = f'{self.output_stem}_formula_{digest}.omml.xml'
+            (folder / filename).write_bytes(data)
+            url = quote(f'{self.image_folder}/{filename}', safe='/')
+            self.warn(f'公式未能转换，原始 OMML 已保存到 {filename}：{exc}')
+            text = escape(''.join(element.itertext())) or '未转换的公式'
+            return (f'<a href="{url}">原始公式</a>' if as_html else
+                    f'{text}（[原始公式]({url})）')
+        if self.math_mode == 'image':
+            try:
+                image = render_png(latex, display)
+                digest = hashlib.sha256(image.data).hexdigest()
+                if digest not in self.images:
+                    folder = self.destination / self.image_folder
+                    folder.mkdir(exist_ok=True)
+                    filename = f'{self.output_stem}_formula_{len(self.images)+1:03d}_{digest[:8]}.png'
+                    (folder / filename).write_bytes(image.data)
+                    self.images[digest] = f'{self.image_folder}/{filename}'
+                url = quote(self.images[digest], safe='/')
+                return f'<img src="{url}" alt="公式">' if as_html else f'![公式]({url})'
+            except FormulaError as exc:
+                self.warn(f'公式图片生成失败，已保留 LaTeX：{exc}')
+        return self.formula_text(latex, display, as_html)
 
     def list_prefix(self, props):
         numprops = {}
@@ -466,7 +517,9 @@ def staging_directory(output):
         shutil.rmtree(resolved)
 
 
-def convert_file(source: str | Path, output_dir: str | Path | None = None, *, overwrite=False) -> ConversionResult:
+def convert_file(source: str | Path, output_dir: str | Path | None = None, *, overwrite=False, math_mode='latex') -> ConversionResult:
+    if math_mode not in ('latex', 'image'):
+        raise ValueError('公式输出方式必须是 latex 或 image。')
     source = Path(source).expanduser().resolve()
     if not source.is_file():
         raise ValueError(f'文件不存在：{source}')
@@ -490,7 +543,7 @@ def convert_file(source: str | Path, output_dir: str | Path | None = None, *, ov
         actual = convert_legacy_doc(source, stage) if source.suffix.lower() == '.doc' else source
         export = stage / 'export'
         export.mkdir()
-        reader = DocxReader(actual, export, output_stem)
+        reader = DocxReader(actual, export, output_stem, math_mode)
         try:
             markdown = reader.render()
             (export / markdown_path.name).write_text(markdown, encoding='utf-8')

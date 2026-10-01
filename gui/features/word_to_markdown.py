@@ -25,8 +25,13 @@ class WordToMarkdown:
         return {}
 
     @staticmethod
+    def create_output_options(parent):
+        from ..formula_options import FormulaOptions
+        return FormulaOptions('markdown', parent)
+
+    @staticmethod
     def convert(source, output, overwrite, settings, log):
-        return convert_file(source, output, overwrite=overwrite)
+        return convert_file(source, output, overwrite=overwrite, **settings)
 
     @staticmethod
     def preview_path(result):

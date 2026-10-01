@@ -7,10 +7,12 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from xml.etree import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from md2docx import __version__
+from notices import license_files
 
 DIST = ROOT / 'dist'
 SPECS = ('md2docx-cli.spec', 'docx2md-cli.spec', 'md2docx-gui.spec')
@@ -39,20 +41,38 @@ def validate_artifacts():
         for name in EXES[:2]:
             run([str(DIST / name), '--help'], capture_output=True, timeout=45, creationflags=flags)
         markdown = folder / 'document.md'
-        markdown.write_text('# DocBridge\n\n**bold** and *italic*\n', encoding='utf-8')
+        markdown.write_text('# DocBridge\n\n**bold** and *italic*\n\n'
+                            'Inline $x_1^2$.\n\n$$\n\\frac{a}{b}+\\sqrt{x}\n$$\n', encoding='utf-8')
         word = folder / 'document.docx'
         run([str(DIST / 'md2docx.exe'), str(markdown), '-o', str(word)],
             capture_output=True, timeout=90, creationflags=flags)
         if not word.is_file():
             raise RuntimeError('Markdown to Word artifact check failed')
+        with zipfile.ZipFile(word) as archive:
+            document = ET.fromstring(archive.read('word/document.xml'))
+        math_namespace = {'m': 'http://schemas.openxmlformats.org/officeDocument/2006/math'}
+        if document.find('.//m:f', math_namespace) is None:
+            raise RuntimeError('Editable formula artifact check failed')
         exported = folder / 'exported'
         run([str(DIST / 'docx2md.exe'), str(word), '-o', str(exported)],
             capture_output=True, timeout=90, creationflags=flags)
-        if 'DocBridge' not in (exported / 'document.md').read_text(encoding='utf-8'):
+        exported_text = (exported / 'document.md').read_text(encoding='utf-8')
+        if 'DocBridge' not in exported_text or '\\frac{a}{b}' not in exported_text:
             raise RuntimeError('Word to Markdown artifact check failed')
+        images = folder / 'formula-images'
+        run([str(DIST / 'docx2md.exe'), str(word), '-o', str(images), '--math-mode', 'image'],
+            capture_output=True, timeout=90, creationflags=flags)
+        if len(list((images / 'document_images').glob('*.png'))) != 2:
+            raise RuntimeError('Formula PNG export artifact check failed')
+        image_word = folder / 'image.docx'
+        run([str(DIST / 'md2docx.exe'), str(markdown), '-o', str(image_word), '--math-mode', 'image'],
+            capture_output=True, timeout=90, creationflags=flags)
+        with zipfile.ZipFile(image_word) as archive:
+            if len([name for name in archive.namelist() if name.startswith('word/media/')]) != 2:
+                raise RuntimeError('Formula PNG embedding artifact check failed')
         snapshot = folder / 'window.png'
         try:
-            run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot)],
+            run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot), '--selftest-convert', str(markdown)],
                 capture_output=True, timeout=90, creationflags=flags)
         except subprocess.CalledProcessError:
             log = Path(str(snapshot) + '.log')
@@ -76,6 +96,8 @@ def make_release_zip():
             name = path.name if path.parent == DIST else path.relative_to(ROOT).as_posix()
             package.write(path, name)
         package.writestr('START.txt', 'Run docbridge.exe. Optional .doc support is downloaded only when requested in the GUI.\n')
+        for source, target_dir in license_files():
+            package.write(source, target_dir + '/' + source.name)
     return target
 
 

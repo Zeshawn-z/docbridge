@@ -15,10 +15,30 @@
 | `src/docx2md/legacy.py` | `.doc` 转换引擎查找与调用，不依赖 Qt |
 | `src/docx2md/runtime.py` | 用户主动触发的下载、SHA-256 校验、文件准备与本地缓存 |
 | `doc_options.py` | `.doc 支持`页与独立下载线程 |
+| `formula_options.py` | 公式输出选项，独立于排版和下载引擎 |
+| `formula_preview.py` | Qt 公式图片预览，源码保持原样 |
+| `src/docbridge_math/` | LaTeX、MathML、OMML 与 PNG 转换，不依赖 Qt 或任务状态 |
 
 切换页面时不复制、不清空、不重新填充任务状态。后台信号连接到所属页面，即使页面隐藏，结果仍写入该页面。各页面可以同时运行；关闭主窗口会检查所有页面的后台任务。
 
 添加功能时实现 `ConversionFeature` 的元数据、选项、转换函数与结果路径，再在 `features/__init__.py` 注册。窗口和后台线程无需增加按功能判断的分支。也可以给 `MainWindow(features=...)` 传入自己的功能集合。
+
+功能可选提供 `create_output_options(parent)`，返回带 `values()` 的控件；任务页面将其值合入
+后台参数快照，转换开始后锁定该控件。公式格式通过这个接口接入，两边保持独立。
+
+## 公式后端
+
+Markdown 公式分隔符由 markdown-it 插件解析，代码块和行内代码保持原样。`codec.py` 使用
+latex2mathml 解析，再用 mathml2omml 生成原生 Word 公式；修正该库的常见重音与横线节点。
+PNG 路径通过 ziamath 的 STIX 数学字体生成 SVG 路径，再由 resvg 转为 288 dpi PNG，
+不使用浏览器、远程服务或系统 TeX。渲染字体和符号表随三个 EXE 打包。
+
+`omml.py` 读取常见 Office Math 结构，保持分式、脚标、根号、矩阵与运算符结构。
+无法表达的节点报告提示，并导出原始 XML，避免把复杂公式静默压成文字。
+公式 PNG 的 Word 替代文字携带原始 LaTeX，支持本程序生成图片的再次导出。
+
+Word 导出公式资源继续使用临时目录与回滚发布流程；Markdown 转 Word 的 PNG 直接嵌入
+DOCX，不留下临时图片。预览独立于输出格式，不会修改原文件或生成的 Markdown。
 
 ## `.doc` 运行环境
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+from PyInstaller.utils.hooks import collect_data_files
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
@@ -19,6 +20,7 @@ for _path in (SRC, PACKAGING):
         sys.path.insert(0, _path)
 
 from md2docx import __version__, resources  # noqa: E402
+from notices import license_files
 
 ICON = os.path.join(PACKAGING, "md2docx.ico")
 
@@ -34,6 +36,9 @@ DATAS = [
     (os.path.join(ROOT, "config"), "config"),
     (resources.mermaid_js_path(), os.path.join("tools", "vendor")),
 ]
+for package in ('latex2mathml', 'ziamath', 'ziafont'):
+    DATAS.extend(collect_data_files(package))
+DATAS.extend((str(source), target) for source, target in license_files())
 
 #: PyInstaller 静态分析抓不到的导入（大多是条件导入或动态加载）。
 #: 只写确实存在的模块名——写错会在日志里刷 ERROR，容易被误当成构建失败。
@@ -46,6 +51,9 @@ HIDDEN_IMPORTS = [
     "md2docx", "md2docx.cli", "md2docx.config", "md2docx.mermaid",
     "md2docx.numbering", "md2docx.ooxml", "md2docx.renderer", "md2docx.resources",
     "md2docx.units",
+    "docbridge_math", "docbridge_math.codec", "docbridge_math.omml",
+    "latex2mathml.converter", "mathml2omml", "ziamath", "ziafont", "resvg_py",
+    "mdit_py_plugins.dollarmath", "mdit_py_plugins.texmath",
 ]
 
 #: 排除用不到的东西：tkinter 与仓库里没有的 Qt 模块是体积大头

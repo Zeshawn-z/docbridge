@@ -21,6 +21,11 @@ class MarkdownToWord:
     def read_options(self, widget):
         return {'template': widget.template_path(), 'overrides': widget.overrides()}
 
+    @staticmethod
+    def create_output_options(parent):
+        from ..formula_options import FormulaOptions
+        return FormulaOptions('word', parent)
+
     def convert(self, source, output, overwrite, settings, log):
         return convert_markdown(source, output, overwrite=overwrite, log=log, **settings)
 
