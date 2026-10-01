@@ -120,6 +120,9 @@ class DocxReader:
         return result
 
     def image(self, rid, alt='图片', as_html=False):
+        if self.destination is None:
+            self.warn('图片已略过。')
+            return ''
         target, mode = self.relationships.get(rid, ('', None))
         if not target or mode == 'External':
             self.warn('有外链或缺失图片未导出。')
@@ -238,6 +241,10 @@ class DocxReader:
         try:
             latex = omml_to_latex(element)
         except FormulaError as exc:
+            if self.destination is None:
+                self.warn(f'公式无法转换为 LaTeX，已保留文字：{exc}')
+                text = ''.join(element.itertext()) or '[公式无法转换]'
+                return html.escape(text) if as_html else escape(text)
             # Keep the original structure as a sidecar when the backend cannot
             # express it, so unsupported equations are never silently discarded.
             data = ET.tostring(element, encoding='utf-8', xml_declaration=True)

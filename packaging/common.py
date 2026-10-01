@@ -44,6 +44,7 @@ DATAS.extend((str(source), target) for source, target in license_files())
 #: PyInstaller 静态分析抓不到的导入（大多是条件导入或动态加载）。
 #: 只写确实存在的模块名——写错会在日志里刷 ERROR，容易被误当成构建失败。
 HIDDEN_IMPORTS = [
+    'docbridge_text',
     "linkify_it", "mdurl",
     "yaml",
     "docx", "docx.opc.part", "docx.image", "lxml.etree", "lxml._elementpath",

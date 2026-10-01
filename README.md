@@ -6,6 +6,8 @@ Word 与 Markdown 双向转换工具，提供 Windows 图形界面和命令行�
 
 - Markdown 转 Word：模板排版、正文及标题 1–6 级样式、目录、页码、编号、列表、表格和图片。
 - Word 转 Markdown：按原标题层级导出，保留粗体、斜体、列表、链接和表格；图片导出并重映射相对路径。
+- 粘贴转 Word：直接粘贴 AI 输出或 Markdown 文本，使用默认排版保存为 Word；需要时再打开排版设置。
+- Word 转文本：选择或拖入一份 Word 文档，直接显示 Markdown 文本，一键复制，不生成 MD 文件。
 - 自动目录按正文标题重建为可点击目录；合并单元格表格使用 HTML 保留结构。
 - 公式双向转换：Markdown 公式可生成可编辑 Word 公式或 PNG；Word 原生公式可导出 LaTeX 或 PNG。
 - 批量添加、目录导入、拖放、预览与日志。两个方向的队列、结果及任务状态相互独立。
@@ -29,9 +31,35 @@ python -m venv .venv
 Windows 下也可双击 `run-gui.bat`，使用项目内的虚拟环境。
 原来的 `md2docx.py`、`docx2md.py` 和 `md2docx_gui.py` 入口继续可用。
 
-## 输出
+## 文本转换
 
-GUI 默认保存到每份原文件所在目录。重名时添加编号，勾选覆盖后才替换结果。
+“粘贴转 Word”直接粘贴内容后点击“保存为 Word”，选择保存位置。默认保留标题、列表、
+表格、加粗与斜体，公式生成可编辑的 Word 公式。排版设置可调整字体、段落、页面及逐级标题样式，
+不需要设置即可转换。支持 AI 输出外层的 `markdown` 或 `md` 代码围栏。
+
+“Word 转文本”选择文件后自动读取，点击“复制全部”即可粘贴到其他应用。两个文本页面只处理
+文字：输入图片保留描述，Word 图片略过，Mermaid 保留代码，不导出图片或其他附加文件。
+Word 原生公式及 DocBridge 公式图片尽可能恢复为 LaTeX；无法恢复的公式保留文字并提示。
+
+![粘贴转 Word](docs/workbench-paste.png)
+
+![Word 转文本](docs/workbench-text.png)
+
+CLI 使用同一个文本转换接口，支持直接文本、标准输入和标准输出：
+
+```powershell
+md2docx.exe --text "# 标题" -o 报告.docx
+Get-Content 内容.txt -Raw -Encoding utf8 | md2docx.exe --stdin -o 报告.docx
+docx2md.exe 报告.docx --stdout
+```
+
+也可用 `md2docx.exe - -o 报告.docx` 读取标准输入。文本写入支持原有 `-c`、`--set` 排版选项；
+输出重名时默认报错，使用 `--overwrite` 才替换已有文件。`--stdout` 每次读取一份文档，
+正文写到标准输出，提示写到标准错误，不混入正文。需要文件及图片导出时使用原有转换模式。
+
+## 文件输出
+
+文件转换页默认保存到每份原文件所在目录。重名时添加编号，勾选覆盖后才替换结果。
 Word 转 Markdown 的输出名称保持一致：
 
 ```text

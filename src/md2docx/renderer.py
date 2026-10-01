@@ -88,12 +88,13 @@ class RunCtx:
 
 
 class MarkdownToDocx:
-    def __init__(self, config: dict, md_path: str, out_path: str, log=print):
+    def __init__(self, config: dict, md_path: str, out_path: str, log=print, *, include_images=True):
         self.cfg = config
         self.md_path = md_path
         self.out_path = os.path.abspath(out_path)
         self.base_dir = os.path.dirname(os.path.abspath(md_path))
         self.log = log
+        self.include_images = include_images
         self.warnings: list[str] = []
         self.counters = {"paragraph": 0, "heading": 0, "table": 0, "list": 0,
                          "code": 0, "mermaid": 0, "image": 0, "formula": 0}
@@ -321,7 +322,12 @@ class MarkdownToDocx:
                 paragraph.add_run().add_break(WD_BREAK.LINE)
                 continue
             elif t == "image":
-                self._insert_inline_image(paragraph, tok)
+                if self.include_images:
+                    self._insert_inline_image(paragraph, tok)
+                else:
+                    self._add_run(paragraph, tok.content, ctx, char)
+                    if '图片已略过，保留描述文字。' not in self.warnings:
+                        self.warnings.append('图片已略过，保留描述文字。')
                 continue
             elif t == "html_inline":
                 continue
@@ -355,6 +361,8 @@ class MarkdownToDocx:
     # ------------------------------------------------------------------ 图片
     def _render_formula(self, source, paragraph, char, display=False):
         mode = self.cfg.get('math', {}).get('mode', 'omml')
+        if not self.include_images and mode == 'image':
+            mode = 'omml'
         size = float(char.get('size_pt') or parse_size(
             element_style(self.cfg, 'body').get('size', '小四')))
         try:
@@ -444,6 +452,9 @@ class MarkdownToDocx:
         return self._mermaid
 
     def _render_mermaid_block(self, code: str, index: int) -> None:
+        if not self.include_images:
+            self._code_block_paragraphs(code.splitlines())
+            return
         cfg = self.cfg["mermaid"]
         cfg = dict(cfg)
         cfg["_font_pt"] = parse_size(

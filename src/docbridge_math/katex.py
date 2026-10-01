@@ -28,13 +28,13 @@ def vendor_dir():
     return root / 'tools' / 'vendor' / 'katex'
 
 
-def browser_path():
+def browser_paths():
     configured = os.environ.get('DOCBRIDGE_BROWSER') or os.environ.get('MD2DOCX_CHROME')
     if configured:
         path = Path(configured).expanduser()
         if not path.is_file():
             raise FormulaError('指定的公式渲染浏览器不存在：' + str(path))
-        return str(path)
+        return [str(path)]
     candidates = [
         r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
         r'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
@@ -45,13 +45,17 @@ def browser_path():
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     ]
-    for candidate in candidates:
-        if Path(candidate).is_file():
-            return candidate
+    found = [candidate for candidate in candidates if Path(candidate).is_file()]
     for name in ('msedge', 'google-chrome', 'chromium', 'chromium-browser'):
         if path := shutil.which(name):
-            return path
+            found.append(path)
+    if found:
+        return list(dict.fromkeys(found))
     raise FormulaError('KaTeX 图片渲染需要本机 Edge 或 Chrome，可用 DOCBRIDGE_BROWSER 指定路径。')
+
+
+def browser_path():
+    return browser_paths()[0]
 
 
 class _AssetHandler(SimpleHTTPRequestHandler):
@@ -67,11 +71,11 @@ class _AssetHandler(SimpleHTTPRequestHandler):
 
 
 class _BrowserSession:
-    def __init__(self):
+    def __init__(self, executable=None):
         self.process = self.socket = self.server = self.thread = self.profile = None
         self.serial = 0
         try:
-            executable = browser_path()
+            executable = executable or browser_path()
             assets = vendor_dir()
             for name in ('katex.min.js', 'katex.min.css', 'render.html', 'render.js',
                          'fonts/KaTeX_Main-Regular.woff2'):
@@ -206,6 +210,17 @@ def close_renderer():
             _session = None
 
 
+def start_renderer():
+    """Try installed browsers in order; an explicit browser remains authoritative."""
+    errors = []
+    for executable in browser_paths():
+        try:
+            return _BrowserSession(executable)
+        except Exception as exc:
+            errors.append(f'{Path(executable).name}: {exc}')
+    raise FormulaError('KaTeX 渲染浏览器启动失败：' + '；'.join(errors))
+
+
 @lru_cache(maxsize=128)
 def render_png(source: str, display=False, size_pt=12) -> FormulaImage:
     global _session
@@ -217,7 +232,7 @@ def render_png(source: str, display=False, size_pt=12) -> FormulaImage:
         with _lock:
             if _session is None or _session.process.poll() is not None:
                 close_renderer()
-                _session = _BrowserSession()
+                _session = start_renderer()
             return _session.render(source, display, size_pt)
     except FormulaError:
         raise

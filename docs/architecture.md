@@ -7,6 +7,9 @@
 | `window_chrome.py` | 圆角无边框窗口、右上角 SVG 窗口按钮、页首和侧栏拖动与边缘缩放 |
 | `conversion_page.py` | 可复用任务页面，每个实例持有独立队列、状态、输出选项、结果、预览和日志 |
 | `task_worker.py` | 接收转换函数与参数快照，后台运行；不判断转换方向 |
+| `text_pages.py`、`text_worker.py` | 两个简单文本页面及独立的后台文本任务，不复用文件队列状态 |
+| `features/text.py` | 粘贴转 Word 和 Word 转文本页面注册 |
+| `src/docbridge_text/` | 无 Qt 的文本读写接口，GUI 与 CLI 共用，直接读写内存文本 |
 | `features/base.py` | 功能接口约定 |
 | `features/markdown_to_word.py` | Markdown 排版选项与原 Word 排版引擎适配 |
 | `features/word_to_markdown.py` | Word 导出适配 |
@@ -22,6 +25,15 @@
 切换页面时不复制、不清空、不重新填充任务状态。后台信号连接到所属页面，即使页面隐藏，结果仍写入该页面。各页面可以同时运行；关闭主窗口会检查所有页面的后台任务。
 
 添加功能时实现 `ConversionFeature` 的元数据、选项、转换函数与结果路径，再在 `features/__init__.py` 注册。窗口和后台线程无需增加按功能判断的分支。也可以给 `MainWindow(features=...)` 传入自己的功能集合。
+
+不使用文件队列的功能可提供 `create_page(parent)` 自行创建页面，仍通过同一个注册表加入导航。
+页面提供 `header`、`workspace`、`busy`、`add_files()` 和 `start()`，供窗口拖动、圆角、快捷键及关闭检查使用。
+文本页面的输入、设置、结果和线程均属于页面自身，切换功能不会修改其他任务。
+
+`docbridge_text.write_docx()` 使用原排版引擎并禁用图片，直接生成临时 DOCX 后替换目标，
+不会创建临时 MD；默认沿用排版并保留 Markdown 斜体语义。`read_docx()` 以无资源目录的
+`DocxReader` 读取正文，跳过图片，无法表达的公式只保留文字并提示，不生成 XML 附件。
+CLI 的 `--text` / `--stdin` / `-` 和 `--stdout` 共用这些接口。
 
 功能可选提供 `create_output_options(parent)`，返回带 `values()` 的控件；任务页面将其值合入
 后台参数快照，转换开始后锁定该控件。公式格式通过这个接口接入，两边保持独立。

@@ -19,7 +19,8 @@ SPECS = ('md2docx-cli.spec', 'docx2md-cli.spec', 'md2docx-gui.spec')
 EXES = ('md2docx.exe', 'docx2md.exe', 'docbridge.exe')
 ZIP_NAME = f'docbridge-{__version__}-win64.zip'
 DOC_IMAGES = ('workbench-markdown.png', 'workbench-word.png',
-              'workbench-advanced.png', 'workbench-doc-support.png')
+              'workbench-advanced.png', 'workbench-doc-support.png',
+              'workbench-paste.png', 'workbench-text.png')
 
 
 def run(command, **kwargs):
@@ -78,6 +79,19 @@ def validate_artifacts():
         with zipfile.ZipFile(katex_word) as archive:
             if len([name for name in archive.namelist() if name.startswith('word/media/')]) != 1:
                 raise RuntimeError('KaTeX JS rendering artifact check failed')
+        pasted = folder / 'pasted.docx'
+        text = '# Pasted text\n\n**bold** and *italic*\n\n![skip](missing.png)\n\n$x^2$\n'
+        run([str(DIST / 'md2docx.exe'), '--stdin', '-o', str(pasted)], input=text.encode('utf-8'),
+            capture_output=True, timeout=90, creationflags=flags)
+        with zipfile.ZipFile(pasted) as archive:
+            if any(name.startswith('word/media/') for name in archive.namelist()):
+                raise RuntimeError('Text workflow unexpectedly embedded images')
+        output = run([str(DIST / 'docx2md.exe'), str(pasted), '--stdout'],
+                     capture_output=True, timeout=90, creationflags=flags).stdout.decode('utf-8')
+        if '# Pasted text' not in output or '*italic*' not in output or '![skip]' in output:
+            raise RuntimeError('Text read/write artifact check failed')
+        if (folder / 'pasted.md').exists() or (folder / 'pasted_images').exists():
+            raise RuntimeError('Text workflow unexpectedly exported files')
         snapshot = folder / 'window.png'
         try:
             run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot), '--selftest-convert', str(markdown)],

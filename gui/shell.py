@@ -36,7 +36,7 @@ class MainWindow(FramelessWindow):
 
     @property
     def busy(self):
-        return any(page.busy or getattr(page.options, 'busy', False) for page in self.pages.values())
+        return any(page.busy or getattr(getattr(page, 'options', None), 'busy', False) for page in self.pages.values())
 
     def build_ui(self, features):
         if not features or len({f.key for f in features}) != len(features):
@@ -76,7 +76,8 @@ class MainWindow(FramelessWindow):
         self.register_drag_area(sidebar)
         self.page_stack = QStackedWidget()
         for feature in features:
-            page = ConversionPage(feature, self)
+            create_page = getattr(feature, 'create_page', None)
+            page = create_page(self) if create_page else ConversionPage(feature, self)
             self.pages[feature.key] = page
             self.register_drag_area(page.header)
             self.page_stack.addWidget(page)

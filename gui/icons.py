@@ -4,6 +4,8 @@ from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 PATHS = {
+    'paste': '<path d="M8 5H5v16h14V5h-3M8 3h8v5H8zM8 12h8M8 16h6"/>',
+    'copy': '<path d="M8 8h12v13H8zM16 8V3H3v13h5"/>',
     'minimize': '<path d="M5 16h14"/>',
     'maximize': '<path d="M5 5h14v14H5z"/>',
     'restore': '<path d="M8 8h11v11H8zM5 15V5h10"/>',

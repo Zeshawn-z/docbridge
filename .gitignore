@@ -75,3 +75,5 @@ tools/vendor/mermaid.esm.min.mjs
 !/docs/workbench-word.png
 !/docs/workbench-advanced.png
 !/docs/workbench-doc-support.png
+!/docs/workbench-paste.png
+!/docs/workbench-text.png

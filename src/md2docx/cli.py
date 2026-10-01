@@ -76,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
                "  python md2docx.py docs/ -o out/ --set mermaid.scale=4\n"
                "  python md2docx.py examples/demo.md --show-config\n")
     parser.add_argument("inputs", nargs="*", help="Markdown 文件、目录或通配符")
+    text_input = parser.add_mutually_exclusive_group()
+    text_input.add_argument('--text', help='直接转换 Markdown 文本，不读取 MD 文件，不插入图片')
+    text_input.add_argument('--stdin', action='store_true', help='从标准输入读取 Markdown 文本；也可用 - 作为输入')
+    parser.add_argument('--overwrite', action='store_true', help='文本输入模式下覆盖已有 Word 文件')
     parser.add_argument("-o", "--output", help="输出 docx 路径；多个输入时视为输出目录")
     parser.add_argument("-c", "--config", help="配置模板（只写要改的项即可）")
     parser.add_argument("--set", dest="sets", action="append",
@@ -93,16 +97,30 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    text_mode = args.text is not None or args.stdin or '-' in args.inputs
+    if text_mode:
+        if args.inputs and not (args.inputs == ['-'] and args.text is None and not args.stdin):
+            parser.error('文本输入不能同时指定 Markdown 文件。')
+        if not args.output or not args.output.lower().endswith('.docx'):
+            parser.error('文本输入请用 -o 指定输出 .docx 文件。')
+        if args.math_mode == 'image':
+            parser.error('文本输入不插入图片，公式请选择 omml 或 text。')
 
     if args.show_paths:
         print(f"md2docx {__version__}")
         print(resources.describe())
         return 0
 
-    overrides = _parse_set(args.sets)
+    try:
+        overrides = _parse_set(args.sets)
+    except ConfigValueError as exc:
+        parser.error(str(exc))
     if args.math_mode:
         overrides['math.mode'] = args.math_mode
+    if text_mode:
+        overrides.setdefault('markdown.emphasis_as_bold', False)
     if args.no_mermaid:
         overrides["mermaid.renderer"] = "off"
     try:
@@ -115,6 +133,20 @@ def main(argv: list[str] | None = None) -> int:
         import yaml
         print(yaml.safe_dump(config, allow_unicode=True, sort_keys=False))
         return 0
+
+    if text_mode:
+        from docbridge_text import write_docx
+        try:
+            text = args.text if args.text is not None else sys.stdin.read()
+            result = write_docx(text, args.output, template=args.config, overrides=overrides, overwrite=args.overwrite)
+            if not args.quiet:
+                print(f'已保存：{result.output}', file=sys.stderr)
+            for warning in result.warnings:
+                print('提示：' + warning, file=sys.stderr)
+            return 0
+        except Exception as exc:
+            print(f'转换失败：{exc}', file=sys.stderr)
+            return 1
 
     if not args.inputs:
         build_parser().print_help()

@@ -1,5 +1,6 @@
 import argparse
 import glob
+import sys
 from pathlib import Path
 
 from .converter import convert_file
@@ -27,7 +28,12 @@ def main(argv=None):
     parser.add_argument('--overwrite', action='store_true', help='覆盖已有结果；默认同步添加编号')
     parser.add_argument('--math-mode', choices=('latex', 'image'), default='latex',
                         help='公式：latex 保留公式结构（默认）/ image 导出 PNG 图片')
+    parser.add_argument('--stdout', action='store_true', help='读取一个 Word 文件，将 Markdown 文本写到标准输出；不生成文件和图片')
     args = parser.parse_args(argv)
+    if args.stdout and (args.output or args.math_mode == 'image'):
+        parser.error('--stdout 不生成文件和图片，请勿使用 -o 或 --math-mode image。')
+    if args.stdout and args.download_engine:
+        parser.error('请单独使用 --download-engine 启用引擎后再读取文本。')
     if args.download_engine:
         from .runtime import install_runtime
         try:
@@ -51,6 +57,19 @@ def main(argv=None):
             parser.error('没有可转换的 Word 文件。')
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
+    if args.stdout:
+        if len(files) != 1:
+            parser.error('--stdout 每次只读取一个 Word 文件。')
+        from docbridge_text import read_docx
+        try:
+            result = read_docx(files[0])
+            sys.stdout.write(result.markdown)
+            for warning in result.warnings:
+                print('提示：' + warning, file=sys.stderr)
+            return 0
+        except Exception as exc:
+            print(f'读取失败：{exc}', file=sys.stderr)
+            return 1
     failed = 0
     for path in files:
         try:

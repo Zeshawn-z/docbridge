@@ -78,6 +78,28 @@ def selftest(output: str | None = None, conversion_input: str | None = None) -> 
                 raise RuntimeError('转换自检失败：' + page.log.toPlainText())
             result = next(iter(page.results.values()))
             log(f'converted={page.result_path(result)} images={result.image_count}')
+            if source.suffix.lower() in ('.md', '.markdown'):
+                window.switch_mode('paste2word')
+                pasted = window.current_page
+                pasted.editor.setPlainText(source.read_text(encoding='utf-8-sig'))
+                pasted.save_to(Path(target).with_suffix('.text.docx'))
+                deadline = time.monotonic() + 90
+                while pasted.busy and time.monotonic() < deadline:
+                    app.processEvents()
+                    time.sleep(.01)
+                if pasted.busy or pasted.result is None:
+                    raise RuntimeError('文本写入自检失败：' + pasted.status.text())
+                window.switch_mode('word2text')
+                text_page = window.current_page
+                text_page.load_file(pasted.result.output)
+                deadline = time.monotonic() + 90
+                while text_page.busy and time.monotonic() < deadline:
+                    app.processEvents()
+                    time.sleep(.01)
+                if text_page.busy or text_page.result is None or not text_page.editor.toPlainText().strip():
+                    raise RuntimeError('文本读取自检失败：' + text_page.status.text())
+                log('text-workflows=OK')
+                window.switch_mode('md2word')
         snapshot(window, target, background="#E9EDF2")
         size = os.path.getsize(target)
         log(f"screenshot={target} bytes={size}")
