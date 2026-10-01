@@ -1,19 +1,9 @@
-"""LaTeX → MathML → editable Office Math or a self-contained PNG."""
+"""Editable Office Math conversion and the public formula rendering API."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-import math
 import re
-from threading import RLock
 from xml.etree import ElementTree as ET
-
-
-class FormulaError(ValueError):
-    """A formula cannot be converted faithfully by the local backend."""
-
-
-_render_lock = RLock()
-MAX_SOURCE = 16000
+from .shared import FormulaError, FormulaImage, MAX_SOURCE
 
 
 def latex_to_mathml(source: str, display=False) -> str:
@@ -105,38 +95,7 @@ def latex_to_omml(source: str, display=False, size_pt=12):
         raise FormulaError(f'Word 公式转换失败：{exc}') from exc
 
 
-@dataclass(frozen=True)
-class FormulaImage:
-    data: bytes
-    width_pt: float
-    height_pt: float
-    depth_pt: float
-
-
 def render_png(source: str, display=False, size_pt=12) -> FormulaImage:
-    """Render at 288 dpi. All SVG glyphs are paths; no system fonts or GUI."""
-    import ziamath
-    import resvg_py
-    try:
-        mathml = latex_to_mathml(source, display)
-        with _render_lock:
-            expression = ziamath.Math(mathml, size=float(size_pt) * 96 / 72)
-            for node in ET.fromstring(mathml).iter():
-                for char in node.text or '':
-                    if (not char.isspace() and char not in '\u2061\u2062\u2063\u2064\u200b\u200c\u200d'
-                            and not expression.font.glyphindex(char)):
-                        raise FormulaError(f'内置数学字体没有字符 {char}，请使用可编辑公式。')
-            svg = expression.svgxml()
-            width, height = float(svg.get('width')), float(svg.get('height'))
-            if (not all(math.isfinite(v) and v > 0 for v in (width, height))
-                    or width > 8000 or height > 4000 or width * height > 2_000_000):
-                raise FormulaError('公式图片尺寸过大。')
-            data = resvg_py.svg_to_bytes(svg_string=ET.tostring(svg, encoding='unicode'),
-                                         zoom=3, background='#ffffff', skip_system_fonts=True)
-        top = float(svg.get('viewBox').split()[1])
-        return FormulaImage(data, width * 72 / 96, height * 72 / 96,
-                            max(0.0, top + height) * 72 / 96)
-    except FormulaError:
-        raise
-    except Exception as exc:
-        raise FormulaError(f'公式图片渲染失败：{exc}') from exc
+    """Render with bundled KaTeX in the system's headless Edge/Chrome."""
+    from .katex import render_png as render_katex
+    return render_katex(source, display, size_pt)

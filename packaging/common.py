@@ -35,8 +35,9 @@ def icon() -> str | None:
 DATAS = [
     (os.path.join(ROOT, "config"), "config"),
     (resources.mermaid_js_path(), os.path.join("tools", "vendor")),
+    (os.path.join(resources.vendor_dir(), 'katex'), os.path.join('tools', 'vendor', 'katex')),
 ]
-for package in ('latex2mathml', 'ziamath', 'ziafont'):
+for package in ('latex2mathml',):
     DATAS.extend(collect_data_files(package))
 DATAS.extend((str(source), target) for source, target in license_files())
 
@@ -51,8 +52,8 @@ HIDDEN_IMPORTS = [
     "md2docx", "md2docx.cli", "md2docx.config", "md2docx.mermaid",
     "md2docx.numbering", "md2docx.ooxml", "md2docx.renderer", "md2docx.resources",
     "md2docx.units",
-    "docbridge_math", "docbridge_math.codec", "docbridge_math.omml",
-    "latex2mathml.converter", "mathml2omml", "ziamath", "ziafont", "resvg_py",
+    "docbridge_math", "docbridge_math.codec", "docbridge_math.omml", "docbridge_math.katex",
+    "latex2mathml.converter", "mathml2omml", "websocket",
     "mdit_py_plugins.dollarmath", "mdit_py_plugins.texmath",
 ]
 

@@ -9,11 +9,12 @@ class FormulaOptions(QWidget):
         form.setContentsMargins(0, 0, 0, 0)
         self.mode = QComboBox()
         choices = ([('沿用模板', None), ('Word 可编辑公式', 'omml'),
-                    ('PNG 图片', 'image'), ('LaTeX 源码', 'text')] if target == 'word'
-                   else [('LaTeX', 'latex'), ('PNG 图片', 'image')])
+                    ('PNG 图片（KaTeX）', 'image'), ('LaTeX 源码', 'text')] if target == 'word'
+                   else [('LaTeX', 'latex'), ('PNG 图片（KaTeX）', 'image')])
         for title, value in choices:
             self.mode.addItem(title, value)
         form.addRow('公式格式', self.mode)
+        self.mode.setToolTip('图片由内置 KaTeX 和本机 Edge / Chrome 离线渲染。')
 
     def values(self):
         mode = self.mode.currentData()

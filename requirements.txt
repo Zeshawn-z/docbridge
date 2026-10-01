@@ -12,8 +12,7 @@ linkify-it-py>=2.0.0
 mdit-py-plugins>=0.4,<0.7
 latex2mathml>=3.78,<4
 mathml2omml>=0.0.2,<0.1
-ziamath>=0.13,<0.14
-resvg-py>=0.5,<0.6
+websocket-client>=1.8,<2
 
 # 图形界面额外需要（约 77 MB，不装也能用命令行）
 # 只装 Essentials 就够了：QtWidgets / QtGui / QtCore / QtSvg 都在里面，

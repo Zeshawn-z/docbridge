@@ -70,6 +70,14 @@ def validate_artifacts():
         with zipfile.ZipFile(image_word) as archive:
             if len([name for name in archive.namelist() if name.startswith('word/media/')]) != 2:
                 raise RuntimeError('Formula PNG embedding artifact check failed')
+        katex_source = folder / 'katex.md'
+        katex_source.write_text(r'$\def\foo{x}\boxed{\color{blue}{\foo^2}}$', encoding='utf-8')
+        katex_word = folder / 'katex.docx'
+        run([str(DIST / 'md2docx.exe'), str(katex_source), '-o', str(katex_word), '--math-mode', 'image'],
+            capture_output=True, timeout=90, creationflags=flags)
+        with zipfile.ZipFile(katex_word) as archive:
+            if len([name for name in archive.namelist() if name.startswith('word/media/')]) != 1:
+                raise RuntimeError('KaTeX JS rendering artifact check failed')
         snapshot = folder / 'window.png'
         try:
             run([str(DIST / 'docbridge.exe'), '--selftest', str(snapshot), '--selftest-convert', str(markdown)],
@@ -102,12 +110,15 @@ def make_release_zip():
 
 
 def main():
+    global DIST
     parser = argparse.ArgumentParser(description='Build DocBridge for Windows')
     parser.add_argument('--clean', action='store_true')
+    parser.add_argument('--distpath', default=str(DIST), help='Directory for executables and archive')
     parser.add_argument('--workpath', default=str(ROOT / 'build'))
     parser.add_argument('--skip-smoke', action='store_true', help='Skip executable verification')
     parser.add_argument('--skip-zip', action='store_true')
     args = parser.parse_args()
+    DIST = Path(args.distpath).resolve()
     run([sys.executable, str(ROOT / 'packaging/make_icon.py')])
     for name in SPECS:
         command = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--distpath', str(DIST),

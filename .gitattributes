@@ -3,3 +3,6 @@
 *.png binary
 # Preserve bundled third-party JavaScript byte-for-byte.
 tools/vendor/*.js -text -diff
+tools/vendor/katex/katex.min.js -text -diff
+tools/vendor/katex/katex.min.css -text -diff
+tools/vendor/katex/fonts/* binary

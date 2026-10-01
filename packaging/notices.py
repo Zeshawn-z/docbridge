@@ -2,11 +2,11 @@
 from importlib.metadata import distribution
 from pathlib import Path
 
-PACKAGES = ('mdit-py-plugins', 'latex2mathml', 'mathml2omml', 'ziamath', 'ziafont', 'resvg-py')
+PACKAGES = ('mdit-py-plugins', 'latex2mathml', 'mathml2omml', 'websocket-client')
 
 
 def license_files():
-    files = [(Path(__file__).resolve().parents[1] / 'docs/licenses/STIX-OFL.txt', 'licenses/STIX')]
+    files = [(Path(__file__).resolve().parents[1] / 'tools/vendor/katex/LICENSE', 'licenses/KaTeX')]
     for package in PACKAGES:
         dist = distribution(package)
         for item in dist.files or []:
