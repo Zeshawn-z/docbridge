@@ -261,7 +261,9 @@ def _validate(config: dict) -> None:
     mmd.setdefault("keep_source_on_fail", True)
 
     out = config.setdefault("output", {})
-    out.setdefault("toc", False)
+    # Legacy templates may still contain these removed generation options.
+    out.pop('toc', None)
+    out.pop('toc_levels', None)
     out.setdefault("overwrite", True)
 
     math = config.setdefault('math', {})

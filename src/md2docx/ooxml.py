@@ -173,7 +173,10 @@ def apply_run_format(rpr, *, font_zh=None, font_en=None, size_pt=None, bold=None
         u = ensure(rpr, "w:u", RPR_ORDER)
         u.set(qn("w:val"), "single" if underline else "none")
     if color:
-        ensure(rpr, "w:color", RPR_ORDER).set(qn("w:val"), resolve_color(color))
+        color_element = ensure(rpr, "w:color", RPR_ORDER)
+        for attr in ('themeColor', 'themeTint', 'themeShade'):
+            color_element.attrib.pop(qn('w:' + attr), None)
+        color_element.set(qn("w:val"), resolve_color(color))
     if spacing_pt is not None:
         ensure(rpr, "w:spacing", RPR_ORDER).set(qn("w:val"), str(pt_to_twip(spacing_pt)))
     if vert_align:
@@ -419,24 +422,6 @@ def add_page_number_field(paragraph, size_pt: float = 9.0,
     end = OxmlElement("w:fldChar")
     end.set(qn("w:fldCharType"), "end")
     for el in (begin, instr, end):
-        run._element.append(el)
-
-
-def add_toc_field(paragraph, levels: str = "1-3") -> None:
-    """插入目录域（Word 打开后按 F9 更新）。"""
-    run = paragraph.add_run()
-    begin = OxmlElement("w:fldChar")
-    begin.set(qn("w:fldCharType"), "begin")
-    instr = OxmlElement("w:instrText")
-    instr.set(qn("xml:space"), "preserve")
-    instr.text = f' TOC \\o "{levels}" \\h \\z \\u '
-    separate = OxmlElement("w:fldChar")
-    separate.set(qn("w:fldCharType"), "separate")
-    placeholder = OxmlElement("w:t")
-    placeholder.text = "右键此处选择“更新域”生成目录"
-    end = OxmlElement("w:fldChar")
-    end.set(qn("w:fldCharType"), "end")
-    for el in (begin, instr, separate, placeholder, end):
         run._element.append(el)
 
 

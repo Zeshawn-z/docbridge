@@ -3,6 +3,7 @@ import hashlib
 import html
 import re
 from markdown_it import MarkdownIt
+from docbridge_markdown import install_text_rules
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QImage, QTextDocument
 from docbridge_math import FormulaError, render_png
@@ -12,13 +13,11 @@ from docbridge_math.markdown import install_math_rules
 def show_markdown(browser, text):
     parser = MarkdownIt('commonmark', {'html': False})
     parser.enable(['table', 'strikethrough'])
+    install_text_rules(parser)
     install_math_rules(parser)
     clean = re.sub(r'^\s*<a id="[^"]+"></a>\s*$', '', text, flags=re.M)
     tokens = parser.parse(clean)
     types = {'math_inline', 'math_inline_double', 'math_block'}
-    if not any(t.type in types or any(c.type in types for c in t.children or []) for t in tokens):
-        browser.setMarkdown(text)
-        return
     cache = {}
 
     def formula(tokens, index, options, env):

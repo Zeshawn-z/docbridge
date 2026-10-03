@@ -3,8 +3,8 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QFont, QTextCursor, QTextCharFormat
+from PySide6.QtCore import Qt, QUrl, QSize
+from PySide6.QtGui import QDesktopServices, QFont, QTextCursor, QTextCharFormat, QColor
 from PySide6.QtWidgets import (QWidget, QAbstractItemView, QCheckBox, QFileDialog,
     QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QProgressBar,
     QPushButton, QStackedWidget, QTableWidget, QTableWidgetItem, QTabWidget,
@@ -116,11 +116,12 @@ class ConversionPage(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(2, 105)
+        self.table.setColumnWidth(2, 132)
         self.table.itemSelectionChanged.connect(self.preview_selected)
         self.file_stack.addWidget(self.table)
         files_layout.addWidget(self.file_stack, 1)
@@ -349,22 +350,16 @@ class ConversionPage(QWidget):
 
     def set_status(self, key, text):
         row = self.rows[key]
-        colors = {'等待转换': ('#eef2f7', '#8793a5'), '转换中': ('#eaf0ff', '#3669e8'),
-                  '完成': ('#e8f7f0', '#278765'), '完成（有提示）': ('#fff4df', '#a77c29'),
-                  '失败': ('#feeeee', '#c65b61'), '已停止': ('#eef2f7', '#8793a5')}
-        background, foreground = colors.get(text, colors['等待转换'])
-        badge = label(text)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setFixedHeight(28)
-        badge.setStyleSheet(f'background:{background};color:{foreground};border-radius:7px;padding:4px;font-size:12px;')
-        holder = QWidget()
-        holder.setStyleSheet('background: white;')
-        layout = QHBoxLayout(holder)
-        layout.setContentsMargins(8, 0, 8, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(badge)
-        self.table.setCellWidget(row, 2, holder)
-        self.table.item(row, 2).setText(text)
+        states = {'等待转换': ('clock', '#8793a5'), '转换中': ('working', '#3669e8'),
+                  '完成': ('check', '#278765'), '完成（有提示）': ('warning', '#a77c29'),
+                  '失败': ('close', '#c65b61'), '已停止': ('pause', '#8793a5')}
+        glyph, color = states.get(text, states['等待转换'])
+        item = self.table.item(row, 2)
+        item.setText('完成，有提示' if text == '完成（有提示）' else text)
+        item.setIcon(icon(glyph, color, 16))
+        item.setForeground(QColor(color))
+        item.setToolTip(text)
+        self.table.setIconSize(QSize(16, 16))
 
     def start(self):
         if self.busy:

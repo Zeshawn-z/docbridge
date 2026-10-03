@@ -151,8 +151,6 @@ class AdvancedOptions(QDialog):
         for title, key in [('上边距', 'top'), ('下边距', 'bottom'), ('左边距', 'left'), ('右边距', 'right')]:
             self.global_edit(page, title, 'page.margin.' + key)
         self.global_choice(page, '页脚页码', 'page.footer_page_number')
-        self.global_choice(page, '插入目录', 'output.toc')
-        self.global_edit(page, '目录级别', 'output.toc_levels')
         self.add_page(page)
 
         page = self.page()

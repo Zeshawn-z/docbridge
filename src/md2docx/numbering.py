@@ -204,7 +204,7 @@ def _sub_ordered(parent, tag: str, **attrs):
 def _lvl_wrapper(abstract, ilvl: int, *, text: str, num_fmt: str, font: str = "",
                  left_chars: float = 0.0, hanging_chars: float = 0.0,
                  font_pt: float = 12.0, start: int = 1, suff: str = "space",
-                 align: str = "left", lvl_restart: int | None = None):
+                 align: str = "left", lvl_restart: int | None = None, run_format=None):
     """写一个 `w:lvl`。
 
     `suff` 控制编号与正文之间的分隔符。写中文顿号这类自带尾缀的方案时用
@@ -227,13 +227,17 @@ def _lvl_wrapper(abstract, ilvl: int, *, text: str, num_fmt: str, font: str = ""
     ind.set(qn("w:hanging"), str(chars_to_twip(hanging_chars, font_pt)))
     ppr.append(ind)
     lvl.append(ppr)
-    if font:
+    if font or run_format:
         rpr = OxmlElement("w:rPr")
-        rfonts = OxmlElement("w:rFonts")
-        rfonts.set(qn("w:ascii"), font)
-        rfonts.set(qn("w:hAnsi"), font)
-        rfonts.set(qn("w:hint"), "default")
-        rpr.append(rfonts)
+        if font:
+            rfonts = OxmlElement("w:rFonts")
+            rfonts.set(qn("w:ascii"), font)
+            rfonts.set(qn("w:hAnsi"), font)
+            rfonts.set(qn("w:hint"), "default")
+            rpr.append(rfonts)
+        if run_format:
+            from .ooxml import apply_run_format
+            apply_run_format(rpr, **run_format)
         lvl.append(rpr)
     return lvl
 
@@ -370,10 +374,11 @@ def _write_plan(root, plan: NumberingPlan, font_pt: float) -> None:
             font=spec.get("font", ""),
             left_chars=float(spec.get("left", 0.0)),
             hanging_chars=float(spec.get("hanging", 0.0)),
-            font_pt=font_pt,
+            font_pt=float(spec.get('_font_pt', font_pt)),
             start=int(spec.get("start", 1)),
             suff=str(spec.get("suff", "space")),
             lvl_restart=spec.get("lvl_restart"),
+            run_format=spec.get('run_format'),
         )
     num = _sub(root, "w:num", numId=plan.num_id)
     _sub(num, "w:abstractNumId", val=plan.abstract_id)

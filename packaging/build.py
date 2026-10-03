@@ -45,12 +45,28 @@ def validate_artifacts():
         markdown.write_text('# DocBridge\n\n**bold** and *italic*\n\n'
                             'Inline $x_1^2$.\n\n$$\n\\frac{a}{b}+\\sqrt{x}\n$$\n', encoding='utf-8')
         word = folder / 'document.docx'
-        run([str(DIST / 'md2docx.exe'), str(markdown), '-o', str(word)],
+        run([str(DIST / 'md2docx.exe'), str(markdown), '-o', str(word),
+             '--set', 'numbering.headings=true', '--set', 'numbering.levels=6',
+             '--set', 'output.toc=true'],
             capture_output=True, timeout=90, creationflags=flags)
         if not word.is_file():
             raise RuntimeError('Markdown to Word artifact check failed')
         with zipfile.ZipFile(word) as archive:
             document = ET.fromstring(archive.read('word/document.xml'))
+            styles = ET.fromstring(archive.read('word/styles.xml'))
+            numbering = ET.fromstring(archive.read('word/numbering.xml'))
+        word_ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        color_key = '{' + word_ns['w'] + '}val'
+        for level in range(1, 7):
+            for suffix in ('', 'Char'):
+                color = styles.find(f'./w:style[@w:styleId="Heading{level}{suffix}"]/w:rPr/w:color', word_ns)
+                if color is None or color.attrib != {color_key: '000000'}:
+                    raise RuntimeError('Heading style retained a theme color')
+            color = numbering.find(f'./w:abstractNum[@w:abstractNumId="110"]/w:lvl[@w:ilvl="{level - 1}"]/w:rPr/w:color', word_ns)
+            if color is None or color.attrib != {color_key: '000000'}:
+                raise RuntimeError('Heading numbering format check failed')
+        if any('TOC' in (node.text or '') for node in document.findall('.//w:instrText', word_ns)):
+            raise RuntimeError('Removed TOC generation was still applied')
         math_namespace = {'m': 'http://schemas.openxmlformats.org/officeDocument/2006/math'}
         if document.find('.//m:f', math_namespace) is None:
             raise RuntimeError('Editable formula artifact check failed')
@@ -80,7 +96,7 @@ def validate_artifacts():
             if len([name for name in archive.namelist() if name.startswith('word/media/')]) != 1:
                 raise RuntimeError('KaTeX JS rendering artifact check failed')
         pasted = folder / 'pasted.docx'
-        text = '# Pasted text\n\n**bold** and *italic*\n\n![skip](missing.png)\n\n$x^2$\n'
+        text = '# Pasted text\n\n**bold** and *italic*\n\n前**（加粗）**后\n\n[1] reference\n\n![skip](missing.png)\n\n$x^2$\n'
         run([str(DIST / 'md2docx.exe'), '--stdin', '-o', str(pasted)], input=text.encode('utf-8'),
             capture_output=True, timeout=90, creationflags=flags)
         with zipfile.ZipFile(pasted) as archive:
@@ -90,6 +106,8 @@ def validate_artifacts():
                      capture_output=True, timeout=90, creationflags=flags).stdout.decode('utf-8')
         if '# Pasted text' not in output or '*italic*' not in output or '![skip]' in output:
             raise RuntimeError('Text read/write artifact check failed')
+        if '<strong>（加粗）</strong>' not in output or r'\[1\] reference' not in output:
+            raise RuntimeError('Bold punctuation or reference preservation failed')
         if (folder / 'pasted.md').exists() or (folder / 'pasted_images').exists():
             raise RuntimeError('Text workflow unexpectedly exported files')
         snapshot = folder / 'window.png'

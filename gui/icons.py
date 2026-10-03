@@ -4,6 +4,11 @@ from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 PATHS = {
+    'check': '<path d="m5 12 4 4L19 6"/>',
+    'clock': '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',
+    'working': '<path d="M20 8a8 8 0 0 0-14-2L3 9m0-5v5h5M4 16a8 8 0 0 0 14 2l3-3m0 5v-5h-5"/>',
+    'warning': '<path d="m12 3 10 18H2zM12 9v5M12 17v1"/>',
+    'pause': '<path d="M8 5v14M16 5v14"/>',
     'paste': '<path d="M8 5H5v16h14V5h-3M8 3h8v5H8zM8 12h8M8 16h6"/>',
     'copy': '<path d="M8 8h12v13H8zM16 8V3H3v13h5"/>',
     'minimize': '<path d="M5 16h14"/>',

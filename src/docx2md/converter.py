@@ -12,6 +12,7 @@ import posixpath
 import re
 import shutil
 import uuid
+import unicodedata
 from contextlib import contextmanager
 import zipfile
 from dataclasses import dataclass, field
@@ -36,7 +37,7 @@ def value(element, name='w:val', default=None):
 
 
 def escape(text):
-    return re.sub(r'([\\`*_{}\[\]<>#|])', r'\\\1', text)
+    return re.sub(r'([\\`*_{}\[\]<>#|$~])', r'\\\1', text.replace('&', '&amp;'))
 
 
 @dataclass
@@ -106,7 +107,7 @@ class DocxReader:
 
     def run_properties(self, run, chain):
         props = run.find('w:rPr', NS)
-        result = {}
+        result = dict.fromkeys(('b', 'i', 'strike', 'vanish'), False)
         layers = [self.defaults, *(s.find('w:rPr', NS) for s in chain)]
         if props is not None:
             layers.extend(s.find('w:rPr', NS) for s in self.style_chain(value(props.find('w:rStyle', NS))))
@@ -188,9 +189,13 @@ class DocxReader:
             return text
         lead, trail = text[:len(text) - len(text.lstrip())], text[len(text.rstrip()):]
         core = text.strip()
+        # Delimiters next to punctuation can fail CommonMark flanking rules.
+        # Inline formatting tags preserve exact text without adding spaces.
+        edges = (core[0], core[-1])
+        html_format = as_html or any(unicodedata.category(c)[0] in 'PS' for c in edges)
         for prop, md, ht in (('strike', '~~', 'del'), ('i', '*', 'em'), ('b', '**', 'strong')):
             if properties.get(prop):
-                core = f'<{ht}>{core}</{ht}>' if as_html else f'{md}{core}{md}'
+                core = f'<{ht}>{core}</{ht}>' if html_format else f'{md}{core}{md}'
         return lead + core + trail
 
     def inline(self, parent, chain, as_html=False):

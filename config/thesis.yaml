@@ -48,7 +48,3 @@ table:
 mermaid:
   theme: neutral
   max_height: 20厘米
-
-output:
-  toc: true                        # 开头插入目录域（Word 里按 F9 更新）
-  toc_levels: "1-2"

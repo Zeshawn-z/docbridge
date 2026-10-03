@@ -273,7 +273,5 @@ math:
   mode: omml                        # omml 可编辑 Word 公式 / image PNG 图片 / text LaTeX 源码
 
 output:
-  toc: false                        # 是否在开头插入目录域（Word 里按 F9 更新）
-  toc_levels: "1-3"
   title: ""                         # 文档属性-标题
   author: ""                        # 文档属性-作者

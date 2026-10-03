@@ -78,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("inputs", nargs="*", help="Markdown 文件、目录或通配符")
     text_input = parser.add_mutually_exclusive_group()
     text_input.add_argument('--text', help='直接转换 Markdown 文本，不读取 MD 文件，不插入图片')
-    text_input.add_argument('--stdin', action='store_true', help='从标准输入读取 Markdown 文本；也可用 - 作为输入')
+    text_input.add_argument('--stdin', action='store_true', help='从标准输入读取 UTF-8 Markdown 文本；也可用 - 作为输入')
     parser.add_argument('--overwrite', action='store_true', help='文本输入模式下覆盖已有 Word 文件')
     parser.add_argument("-o", "--output", help="输出 docx 路径；多个输入时视为输出目录")
     parser.add_argument("-c", "--config", help="配置模板（只写要改的项即可）")
@@ -137,7 +137,12 @@ def main(argv: list[str] | None = None) -> int:
     if text_mode:
         from docbridge_text import write_docx
         try:
-            text = args.text if args.text is not None else sys.stdin.read()
+            if args.text is not None:
+                text = args.text
+            elif hasattr(sys.stdin, 'buffer'):
+                text = sys.stdin.buffer.read().decode('utf-8-sig')
+            else:
+                text = sys.stdin.read()
             result = write_docx(text, args.output, template=args.config, overrides=overrides, overwrite=args.overwrite)
             if not args.quiet:
                 print(f'已保存：{result.output}', file=sys.stderr)

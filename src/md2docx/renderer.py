@@ -25,6 +25,7 @@ from docx.oxml.ns import qn
 from docx.shared import Emu
 from docx.text.run import Run
 from markdown_it import MarkdownIt
+from docbridge_markdown import install_text_rules
 from docbridge_math import FormulaError, latex_to_omml, render_png
 from docbridge_math.markdown import install_math_rules
 
@@ -101,6 +102,7 @@ class MarkdownToDocx:
 
         self.md = MarkdownIt("commonmark", {"html": False, "linkify": False})
         self.md.enable(["table", "strikethrough"])
+        install_text_rules(self.md)
         install_math_rules(self.md)
 
         self.doc = Document()
@@ -171,6 +173,11 @@ class MarkdownToDocx:
             font_pt_for_chars=size_pt,
             contextual_spacing=s.get("contextual_spacing"))
         if key.startswith("heading"):
+            linked = style.element.find(qn('w:link'))
+            linked_style = next((item for item in self.doc.styles if linked is not None
+                                 and item.style_id == linked.get(qn('w:val'))), None)
+            if linked_style is not None:
+                ooxml.apply_run_format(ooxml.style_rpr(linked_style), **self._params(key)[1])
             level = int(key[-1])
             ooxml.apply_para_format(style.element.get_or_add_pPr(),
                                     outline_level=level - 1)
@@ -487,21 +494,7 @@ class MarkdownToDocx:
         if md_cfg.get("strip_front_matter") and text.lstrip().startswith("---"):
             text = re.sub(r"^\s*---\r?\n.*?\r?\n---\r?\n", "", text, count=1, flags=re.S)
         tokens = self.md.parse(text)
-        if self.cfg["output"].get("toc"):
-            self._insert_toc()
         self._walk(tokens, 0, len(tokens))
-
-    def _insert_toc(self) -> None:
-        title, char = self._new_paragraph("heading1")
-        title_run = title.add_run("目录")
-        ooxml.apply_run_format(ooxml.run_rpr(title_run), **char)
-        para, body_char = self._new_paragraph("body")
-        ooxml.add_toc_field(para, str(self.cfg["output"].get("toc_levels", "1-3")))
-        for run in para.runs:      # 目录域的占位文字也要有字形，别用默认字体
-            ooxml.apply_run_format(ooxml.run_rpr(run), **body_char)
-        brk = self.doc.add_paragraph()
-        brk.style = self._ensure_style("Normal")
-        brk.add_run().add_break(WD_BREAK.PAGE)
 
     def _walk(self, tokens, start: int, end: int, list_stack=None) -> int:
         list_stack = list_stack or []
@@ -687,6 +680,9 @@ class MarkdownToDocx:
         if hanging and hanging > 0:
             para_cfg["hanging"] = f"{hanging}字符"
         ooxml.apply_para_format(ooxml.para_ppr(paragraph), **para_cfg)
+        # Numbering inherits the paragraph mark, not the heading text runs.
+        mark = ooxml.ensure(ooxml.para_ppr(paragraph), 'w:rPr', ooxml.PPR_ORDER)
+        ooxml.apply_run_format(mark, **self._params(f'heading{min(level, 6)}')[1])
 
     def _heading_tokens(self, tokens, level: int):
         """如果标题手写了编号前缀，且已开自动编号，就把前缀从文字里去掉。
@@ -696,7 +692,7 @@ class MarkdownToDocx:
         "一、一、项目概述"。
         """
         cfg = self._heading_numbering
-        if not cfg or not cfg.get("strip_text_prefix", True):
+        if self._numbering_level(level) is None or not cfg.get("strip_text_prefix", True):
             return tokens
         out = list(tokens)
         for index, tok in enumerate(out):
@@ -844,7 +840,13 @@ class MarkdownToDocx:
         if self._heading_numbering:
             font_pt = parse_size(
                 element_style(self.cfg, "heading1").get("size", "小三"))
-            plans.append(heading_plan(self._heading_numbering, font_pt))
+            plan = heading_plan(self._heading_numbering, font_pt)
+            skip = int(bool(self._heading_numbering.get('skip_first_level')))
+            for ilvl, spec in enumerate(plan.levels):
+                char = self._params(f'heading{min(ilvl + 1 + skip, 6)}')[1]
+                spec['run_format'] = char
+                spec['_font_pt'] = char['size_pt']
+            plans.append(plan)
         return plans
 
     def save(self) -> None:

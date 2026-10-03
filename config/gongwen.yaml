@@ -90,7 +90,3 @@ page:
 
 table:
   header_fill: "F2F2F2"
-
-output:
-  toc: true
-  toc_levels: "1-3"
