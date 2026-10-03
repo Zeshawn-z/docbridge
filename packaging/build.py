@@ -125,7 +125,7 @@ def validate_artifacts():
 
 def make_release_zip():
     target = DIST / ZIP_NAME
-    paths = [*(DIST / name for name in EXES), ROOT / 'README.md',
+    paths = [*(DIST / name for name in EXES), ROOT / 'README.md', ROOT / 'README_CLI.md',
              ROOT / 'docs/architecture.md', ROOT / 'examples/quickstart.md',
              *sorted((ROOT / 'config').glob('*.yaml')),
              *(ROOT / 'docs' / name for name in DOC_IMAGES)]

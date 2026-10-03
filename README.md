@@ -133,6 +133,8 @@ $$
 
 ## 命令行
 
+完整操作和参数示例见 [命令行使用说明](README_CLI.md)。
+
 ```powershell
 # Markdown 转 Word
 .venv\Scripts\python.exe md2docx.py 报告.md
