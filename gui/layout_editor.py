@@ -8,9 +8,10 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QComboBox, QPushButton, QDialogButtonBox, QLineEdit, QPlainTextEdit,
     QMessageBox, QScrollArea, QWidget, QListWidget, QListWidgetItem,
-    QStackedWidget, QGroupBox, QColorDialog)
+    QStackedWidget, QGroupBox, QColorDialog, QCheckBox, QFileDialog)
 from PySide6.QtGui import QColor
-from md2docx.config import load_config, element_style
+from md2docx.config import load_config, element_style, heading_numbering
+from md2docx.numbering import heading_plan
 from md2docx.units import parse_size
 from . import config_bridge as bridge
 from .icons import icon
@@ -18,14 +19,13 @@ from .icons import icon
 
 def choice(items):
     combo = QComboBox()
-    combo.addItem('沿用模板', None)
     for title, value in items:
         combo.addItem(title, value)
     return combo
 
 
 class AdvancedOptions(QDialog):
-    CATEGORIES = [('字体', 'font'), ('段落', 'paragraph'), ('页面', 'page'),
+    CATEGORIES = [('模板', 'folder'), ('字体', 'font'), ('段落', 'paragraph'), ('页面', 'page'),
                   ('编号与列表', 'list'), ('样式设计', 'style'),
                   ('表格与图片', 'table'), ('高级配置', 'settings')]
     TARGETS = [('正文', 'body'), *[(f'标题 {i}', f'heading{i}') for i in range(1, 7)],
@@ -33,7 +33,9 @@ class AdvancedOptions(QDialog):
                ('代码块', 'code'), ('图注', 'caption'), ('引用', 'quote'),
                ('无序列表', 'list'), ('有序列表', 'list_ordered')]
 
-    def __init__(self, template, overrides, parent=None, inherited=None):
+    TEMPLATE_PAGE, FONT_PAGE, PARAGRAPH_PAGE, STYLE_PAGE, RAW_PAGE = 0, 1, 2, 5, 7
+
+    def __init__(self, template, overrides, parent=None, inherited=None, text_only=False):
         super().__init__(parent)
         self.setWindowTitle('排版设置')
         self.resize(1000, 740)
@@ -41,6 +43,7 @@ class AdvancedOptions(QDialog):
         self.template = template
         self.values = copy.deepcopy(overrides)
         self.inherited = inherited or {}
+        self.text_only = text_only
         self.config = load_config(template, self.inherited)
         self.element_fields, self.element_flags = {}, {}
         self.global_fields, self.global_choices = {}, {}
@@ -53,9 +56,6 @@ class AdvancedOptions(QDialog):
         title.setObjectName('sectionTitle')
         header.addWidget(title)
         header.addStretch()
-        hint = QLabel('空白项沿用模板')
-        hint.setObjectName('muted')
-        header.addWidget(hint)
         layout.addLayout(header)
         body = QHBoxLayout()
         self.categories = QListWidget()
@@ -86,6 +86,43 @@ class AdvancedOptions(QDialog):
         content.addWidget(self.pages, 1)
         body.addLayout(content, 1)
         layout.addLayout(body, 1)
+
+        template_page = QWidget()
+        template_layout = QVBoxLayout(template_page)
+        template_layout.setContentsMargins(8, 12, 12, 12)
+        template_layout.setSpacing(16)
+        template_layout.addWidget(QLabel('选择模板'))
+        self.template_combo = QComboBox()
+        for spec in bridge.template_choices():
+            self.template_combo.addItem(spec['label'], spec['path'])
+        if template and self.template_combo.findData(template) < 0:
+            from pathlib import Path
+            self.template_combo.addItem(Path(template).stem, template)
+        self.template_combo.setCurrentIndex(max(0, self.template_combo.findData(template)))
+        template_layout.addWidget(self.template_combo)
+        self.template_description = QLabel()
+        self.template_description.setObjectName('muted')
+        self.template_description.setWordWrap(True)
+        template_layout.addWidget(self.template_description)
+        template_actions = QHBoxLayout()
+        self.import_button = QPushButton('导入模板')
+        self.import_button.setIcon(icon('upload'))
+        self.import_button.clicked.connect(self.import_template)
+        self.export_button = QPushButton('导出模板')
+        self.export_button.setIcon(icon('download'))
+        self.export_button.clicked.connect(self.export_template)
+        template_actions.addWidget(self.import_button)
+        template_actions.addWidget(self.export_button)
+        template_actions.addStretch()
+        template_layout.addLayout(template_actions)
+        group = QGroupBox('输出')
+        output_form = self.page()
+        group.setLayout(output_form)
+        modes = [('Word 可编辑公式', 'omml'), ('PNG 图片（KaTeX）', 'image'), ('LaTeX 源码', 'text')]
+        self.global_choice(output_form, '公式格式', 'math.mode', [item for item in modes if not text_only or item[1] != 'image'])
+        template_layout.addWidget(group)
+        template_layout.addStretch()
+        self.pages.addWidget(template_page)
 
         page = self.page()
         self.element_edit(page, '中文字体', 'font_zh', bridge.FONT_ZH_CHOICES)
@@ -165,7 +202,7 @@ class AdvancedOptions(QDialog):
         self.style_summary.setWordWrap(True)
         style_layout.addWidget(self.style_summary)
         actions = QHBoxLayout()
-        for title, index, glyph in [('编辑字体', 0, 'font'), ('编辑段落', 1, 'paragraph')]:
+        for title, index, glyph in [('编辑字体', self.FONT_PAGE, 'font'), ('编辑段落', self.PARAGRAPH_PAGE, 'paragraph')]:
             button = QPushButton(title)
             button.setIcon(icon(glyph))
             button.clicked.connect(lambda _checked, i=index: self.categories.setCurrentRow(i))
@@ -174,10 +211,6 @@ class AdvancedOptions(QDialog):
         reset.clicked.connect(self.reset_style)
         actions.addWidget(reset)
         style_layout.addLayout(actions)
-        export = QPushButton('导出排版模板')
-        export.setIcon(icon('file'))
-        export.clicked.connect(self.export_template)
-        style_layout.addWidget(export, alignment=Qt.AlignmentFlag.AlignLeft)
         style_layout.addStretch()
         self.pages.addWidget(style_page)
 
@@ -211,8 +244,10 @@ class AdvancedOptions(QDialog):
         self.style_list.currentRowChanged.connect(self.element.setCurrentIndex)
         self.element.currentIndexChanged.connect(self.fill_element)
         self.categories.currentRowChanged.connect(self.show_category)
+        self.template_combo.currentIndexChanged.connect(self.select_template)
         self.style_list.setCurrentRow(0)
-        self.categories.setCurrentRow(4)
+        self.categories.setCurrentRow(self.TEMPLATE_PAGE)
+        self.update_template_description()
 
     @staticmethod
     def page():
@@ -276,14 +311,17 @@ class AdvancedOptions(QDialog):
         return widget
 
     def element_flag(self, form, title, key, items=None):
-        combo = choice(items or [('开启', True), ('关闭', False)])
-        self.element_flags[key] = combo
-        combo.activated.connect(lambda _i, k=key, c=combo: self.set_value(f'elements.{self.element.currentData()}.{k}', c.currentData()))
-        form.addRow(title, combo)
+        if items is None:
+            control = QCheckBox()
+            control.clicked.connect(lambda checked, k=key: self.set_value(f'elements.{self.element.currentData()}.{k}', checked))
+        else:
+            control = choice(items)
+            control.activated.connect(lambda _i, k=key, c=control: self.set_value(f'elements.{self.element.currentData()}.{k}', c.currentData()))
+        self.element_flags[key] = control
+        form.addRow(title, control)
 
     def global_edit(self, form, title, key):
-        edit = QLineEdit(str(self.values.get(key, '')))
-        edit.setPlaceholderText(str(self.lookup(key)))
+        edit = QLineEdit(str(self.lookup(key)))
         if key.endswith(('color', 'header_fill')):
             edit.setToolTip('六位颜色值，例如 F2F2F2。')
         edit.textEdited.connect(lambda text, k=key: self.set_value(k, (text.strip() or None) if k.endswith(('color', 'header_fill', 'toc_levels')) else self.coerce(text)))
@@ -291,18 +329,55 @@ class AdvancedOptions(QDialog):
         form.addRow(title, self.color_control(edit) if key.endswith(('color', 'header_fill')) else edit)
 
     def global_choice(self, form, title, key, items=None):
-        combo = choice(items or [('开启', True), ('关闭', False)])
-        combo.setCurrentIndex(max(0, combo.findData(self.values.get(key))))
-        combo.setToolTip('模板：' + str(self.lookup(key)))
-        combo.activated.connect(lambda _i, k=key, c=combo: self.set_value(k, c.currentData()))
-        self.global_choices[key] = combo
-        form.addRow(title, combo)
+        if items is None:
+            control = QCheckBox()
+            control.clicked.connect(lambda checked, k=key: self.set_value(k, checked))
+        else:
+            control = choice(items)
+            control.activated.connect(lambda _i, k=key, c=control: self.set_value(k, c.currentData()))
+        self.set_control_value(control, self.lookup(key))
+        self.global_choices[key] = control
+        form.addRow(title, control)
+
+    def effective_config(self):
+        config = copy.deepcopy(self.config)
+        for key, value in self.values.items():
+            node = config
+            parts = key.split('.')
+            for part in parts[:-1]:
+                if not isinstance(node.get(part), dict):
+                    node[part] = {}
+                node = node[part]
+            node[parts[-1]] = copy.deepcopy(value)
+        if self.text_only and config.get('math', {}).get('mode') == 'image':
+            config['math']['mode'] = 'omml'
+        return config
 
     def lookup(self, key):
-        value = self.config
+        config = self.effective_config()
+        if key == 'numbering.headings':
+            try:
+                numbering = heading_numbering(config)
+                return numbering['preset'] if numbering else 'off'
+            except ValueError:
+                pass
+        value = config
         for part in key.split('.'):
             value = value.get(part, '') if isinstance(value, dict) else ''
         return value
+
+    @staticmethod
+    def set_control_value(control, value):
+        control.blockSignals(True)
+        if isinstance(control, QCheckBox):
+            control.setChecked(bool(value))
+        else:
+            index = control.findData(value)
+            if index < 0:
+                control.addItem(str(value), value)
+                index = control.count() - 1
+            control.setCurrentIndex(index)
+        control.blockSignals(False)
 
     @staticmethod
     def coerce(text):
@@ -320,6 +395,8 @@ class AdvancedOptions(QDialog):
             self.values.pop(key, None)
         else:
             self.values[key] = value
+        if key == 'numbering.headings':
+            self.fill_numbering()
         self.refresh_sample()
 
     def update_element(self, key, text):
@@ -330,31 +407,35 @@ class AdvancedOptions(QDialog):
         self.style_list.setCurrentRow(self.element.currentIndex())
         self.style_list.blockSignals(False)
         key = self.element.currentData()
-        style = element_style(self.config, key)
+        style = element_style(self.effective_config(), key)
         for field, edit in self.element_fields.items():
-            edit.setText(str(self.values.get(f'elements.{key}.{field}', '')))
-            edit.setPlaceholderText(str(style.get(field, '')))
-        for field, combo in self.element_flags.items():
-            combo.setCurrentIndex(max(0, combo.findData(self.values.get(f'elements.{key}.{field}'))))
-            combo.setToolTip('模板：' + str(style.get(field, '')))
+            edit.setText(str(style.get(field, '')))
+        for field, control in self.element_flags.items():
+            self.set_control_value(control, style.get(field, False))
         self.refresh_sample()
         self.update_section_heading()
 
     def fill_numbering(self):
+        config = self.effective_config()
+        config.setdefault('numbering', {})['headings'] = self.lookup('numbering.headings')
+        if config['numbering']['headings'] == 'off':
+            config['numbering']['headings'] = True
+        try:
+            level = heading_plan(heading_numbering(config)).levels[self.number_level.currentData() - 1]
+        except (ValueError, TypeError, IndexError):
+            level = {}
         for key, control in self.number_fields.items():
-            value = self.values.get(f'numbering.format.{self.number_level.currentData()}.{key}')
+            value = level.get(key, '')
             if isinstance(control, QLineEdit):
-                control.setText(str(value) if value is not None else '')
+                control.setText(str(value))
                 control.setPlaceholderText('例如 第%1章')
             else:
-                control.setCurrentIndex(max(0, control.findData(value)))
+                self.set_control_value(control, value)
 
     def refresh_sample(self):
         if not hasattr(self, 'sample'):
             return
-        style = element_style(self.config, self.element.currentData())
-        prefix = f'elements.{self.element.currentData()}.'
-        style.update({k[len(prefix):]: v for k, v in self.values.items() if k.startswith(prefix)})
+        style = element_style(self.effective_config(), self.element.currentData())
         font = QFont(str(style.get('font_zh', '宋体')))
         try:
             font.setPointSizeF(parse_size(style.get('size', '小四')))
@@ -383,21 +464,22 @@ class AdvancedOptions(QDialog):
         row = self.categories.currentRow()
         if row >= 0:
             title = self.CATEGORIES[row][0]
-            self.section_heading.setText(f'{self.element.currentText()} / {title}' if row in (0, 1, 4) else title)
+            self.section_heading.setText(f'{self.element.currentText()} / {title}' if row in (self.FONT_PAGE, self.PARAGRAPH_PAGE, self.STYLE_PAGE) else title)
 
     def show_category(self, row):
-        if self.pages.currentIndex() == 6 and self.raw_dirty and not self.apply_raw():
+        if self.pages.currentIndex() == self.RAW_PAGE and self.raw_dirty and not self.apply_raw():
             self.categories.blockSignals(True)
-            self.categories.setCurrentRow(6)
+            self.categories.setCurrentRow(self.RAW_PAGE)
             self.categories.blockSignals(False)
             return
         self.pages.setCurrentIndex(row)
         self.refresh_controls()
-        self.style_panel.setVisible(row in (0, 1, 4))
+        self.style_panel.setVisible(row in (self.FONT_PAGE, self.PARAGRAPH_PAGE, self.STYLE_PAGE))
         self.update_section_heading()
-        if row == 6:
+        if row == self.RAW_PAGE:
+            self.raw_snapshot = self.flatten(self.effective_config())
             self.yaml_edit.blockSignals(True)
-            self.yaml_edit.setPlainText(yaml.safe_dump(self.values, allow_unicode=True, sort_keys=True) if self.values else '')
+            self.yaml_edit.setPlainText(yaml.safe_dump(self.raw_snapshot, allow_unicode=True, sort_keys=True))
             self.yaml_edit.blockSignals(False)
             self.raw_dirty = False
 
@@ -410,8 +492,14 @@ class AdvancedOptions(QDialog):
             values = {} if parsed is None else parsed
             if not isinstance(values, dict) or any(not isinstance(k, str) for k in values):
                 raise ValueError('配置必须是 YAML 映射，键为配置路径。')
-            load_config(self.template, {**self.inherited, **values})
-            self.values = values
+            updates = dict(self.values)
+            for key in self.raw_snapshot.keys() - values.keys():
+                updates.pop(key, None)
+            for key, value in values.items():
+                if key not in self.raw_snapshot or value != self.raw_snapshot[key]:
+                    updates[key] = value
+            load_config(self.template, {**self.inherited, **updates})
+            self.values = updates
             self.raw_dirty = False
             self.refresh_controls()
             return True
@@ -423,18 +511,82 @@ class AdvancedOptions(QDialog):
         self.fill_element()
         self.fill_numbering()
         for key, control in self.global_fields.items():
-            control.setText(str(self.values.get(key, '')))
+            control.setText(str(self.lookup(key)))
         for key, control in self.global_choices.items():
-            control.setCurrentIndex(max(0, control.findData(self.values.get(key))))
+            self.set_control_value(control, self.lookup(key))
+
+    @staticmethod
+    def flatten(config, prefix=''):
+        result = {}
+        for key, value in config.items():
+            if str(key).startswith('_'):
+                continue
+            path = prefix + str(key)
+            if isinstance(value, dict) and value:
+                result.update(AdvancedOptions.flatten(value, path + '.'))
+            else:
+                result[path] = value
+        return result
+
+    def update_template_description(self):
+        from pathlib import Path
+        name = Path(self.template).name if self.template else 'default.yaml'
+        self.template_description.setText(bridge.TEMPLATE_DESC.get(name, '自定义模板').replace(' · ', '，'))
+
+    def select_template(self, index):
+        template = self.template_combo.itemData(index)
+        try:
+            config = load_config(template)
+        except Exception as exc:
+            self.template_combo.blockSignals(True)
+            self.template_combo.setCurrentIndex(max(0, self.template_combo.findData(self.template)))
+            self.template_combo.blockSignals(False)
+            QMessageBox.warning(self, '模板无效', str(exc))
+            return
+        self.template = template
+        self.inherited = {}
+        self.values = {}
+        self.config = config
+        self.raw_dirty = False
+        self.refresh_controls()
+        self.update_template_description()
+
+    def load_template(self, path):
+        from pathlib import Path
+        path = str(Path(path).resolve())
+        load_config(path)
+        index = self.template_combo.findData(path)
+        if index < 0:
+            self.template_combo.addItem(Path(path).stem, path)
+            index = self.template_combo.count() - 1
+        if index == self.template_combo.currentIndex():
+            self.select_template(index)
+        else:
+            self.template_combo.setCurrentIndex(index)
+
+    def import_template(self):
+        path, _ = QFileDialog.getOpenFileName(self, '导入模板', '', 'YAML 模板 (*.yaml *.yml)')
+        if path:
+            try:
+                self.load_template(path)
+            except Exception as exc:
+                QMessageBox.warning(self, '模板无效', str(exc))
+
+    def export_to(self, path):
+        if self.raw_dirty and not self.apply_raw():
+            raise ValueError('请先修正高级配置。')
+        config = load_config(self.template, {**self.inherited, **self.values})
+        if self.text_only and config.get('math', {}).get('mode') == 'image':
+            config['math']['mode'] = 'omml'
+        config.pop('_meta', None)
+        from pathlib import Path
+        Path(path).write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding='utf-8')
 
     def export_template(self):
-        from PySide6.QtWidgets import QFileDialog
-        from pathlib import Path
         path, _ = QFileDialog.getSaveFileName(self, '导出排版模板', '自定义排版.yaml', 'YAML 模板 (*.yaml)')
         if path:
             try:
-                config = load_config(self.template, {**self.inherited, **self.values})
-                Path(path).write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding='utf-8')
+                self.export_to(path)
             except Exception as exc:
                 QMessageBox.warning(self, '导出失败', str(exc))
 

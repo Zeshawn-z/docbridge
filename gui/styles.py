@@ -1,3 +1,9 @@
+from pathlib import Path
+import sys
+
+_assets = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent)) / 'gui' / 'assets'
+_check = (_assets / 'check.svg').as_posix()
+
 STYLES = '''
 QWidget { color: #25334b; font-family: "Microsoft YaHei UI", "Segoe UI"; font-size: 13px; }
 QMainWindow, QWidget#appSurface { background: transparent; }
@@ -6,6 +12,7 @@ QFrame#sidebar { background: #111e36; border: none; border-top-left-radius: 14px
 QWidget#workspace[square="true"], QFrame#sidebar[square="true"] { border-radius: 0; }
 QFrame#sidebar QLabel { color: #94a5bf; background: transparent; }
 QFrame#sidebar QLabel#brand { color: #ffffff; font-size: 19px; font-weight: 600; }
+QFrame#sidebar QLabel#signature { color: #8d9eb9; font-size: 12px; padding: 4px 12px; }
 QFrame#sidebar QLabel#sideTitle { color: #f1f5fb; font-size: 15px; font-weight: 600; }
 QFrame#sidebar QLabel#sideActive { background: #26385b; color: #c4d7ff; border-radius: 9px; padding: 13px; }
 QLabel#eyebrow { color: #6280ab; font-size: 11px; font-weight: 700; }
@@ -32,7 +39,7 @@ QLineEdit { background: #f8faff; border: 1px solid #dce4ef; border-radius: 7px; 
 QLineEdit:focus { border-color: #668ce9; }
 QCheckBox { spacing: 8px; color: #53627a; }
 QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #bfcce0; border-radius: 4px; background: white; }
-QCheckBox::indicator:checked { background: #3669e8; border: 3px solid #c3d3fa; }
+QCheckBox::indicator:checked { background: #3669e8; border: 1px solid #3669e8; image: url("CHECK_ASSET"); }
 QTableWidget { background: white; alternate-background-color: #fbfcff; border: none; gridline-color: #edf1f7; outline: none; }
 QTableWidget::item { border-bottom: 1px solid #edf1f7; padding: 7px; }
 QTableWidget::item:selected { background: #edf3ff; color: #25334b; }
@@ -54,7 +61,6 @@ QScrollArea { border: none; background: transparent; }
 QPushButton#navigation { background: transparent; color: #96a8c5; border: none; text-align: left; padding: 13px 12px; }
 QPushButton#navigation:checked { background: #26385b; color: #dae6ff; }
 QPushButton#navigation:hover { background: #1d2f4d; }
-QCheckBox::indicator:indeterminate { background: #91a8d5; border: 4px solid #e1e8f5; }
 QDialog { background: #f3f5f9; }
 QWidget#formatPage { background: #ffffff; border-radius: 7px; }
 QListWidget { background: #ffffff; border: 1px solid #e2e7ef; border-radius: 7px; outline: none; padding: 5px; }
@@ -68,4 +74,4 @@ QFrame#windowControls { background: transparent; border: none; }
 QPushButton#windowControl, QPushButton#windowClose { border: none; border-radius: 7px; background: transparent; padding: 0; min-height: 0; }
 QPushButton#windowControl:hover { background: #e3e9f2; }
 QPushButton#windowClose:hover { background: #e81123; }
-'''
+'''.replace('CHECK_ASSET', _check)

@@ -20,7 +20,7 @@ EXES = ('md2docx.exe', 'docx2md.exe', 'docbridge.exe')
 ZIP_NAME = f'docbridge-{__version__}-win64.zip'
 DOC_IMAGES = ('workbench-markdown.png', 'workbench-word.png',
               'workbench-advanced.png', 'workbench-doc-support.png',
-              'workbench-paste.png', 'workbench-text.png')
+              'workbench-paste.png', 'workbench-text.png', 'workbench-template.png')
 
 
 def run(command, **kwargs):

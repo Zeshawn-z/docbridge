@@ -12,7 +12,7 @@ class MarkdownToWord:
     preview_label = '内容预览'
     open_label = '打开 Word'
     output_hint = '文档名.docx'
-    settings_label = '排版'
+    settings_label = None
 
     def create_options(self, parent):
         from ..report_options import ReportOptions
@@ -23,8 +23,7 @@ class MarkdownToWord:
 
     @staticmethod
     def create_output_options(parent):
-        from ..formula_options import FormulaOptions
-        return FormulaOptions('word', parent)
+        return None
 
     def convert(self, source, output, overwrite, settings, log):
         return convert_markdown(source, output, overwrite=overwrite, log=log, **settings)

@@ -89,6 +89,10 @@ class MainWindow(FramelessWindow):
             self.mode_buttons[feature.key] = button
             side.addWidget(button)
         side.addStretch()
+        self.signature = QLabel('By Zeshawn')
+        self.signature.setObjectName('signature')
+        self.signature.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        side.addWidget(self.signature)
         content.addWidget(sidebar)
         content.addWidget(self.page_stack, 1)
         layout.addLayout(content, 1)

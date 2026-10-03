@@ -33,6 +33,7 @@ def icon() -> str | None:
 #: 随 exe 一起携带的只读资源。dest 是解包目录（sys._MEIPASS）里的相对路径，
 #: 与 src/md2docx/resources.py 的 resource_root() 约定一致。
 DATAS = [
+    (os.path.join(ROOT, 'gui', 'assets'), os.path.join('gui', 'assets')),
     (os.path.join(ROOT, "config"), "config"),
     (resources.mermaid_js_path(), os.path.join("tools", "vendor")),
     (os.path.join(resources.vendor_dir(), 'katex'), os.path.join('tools', 'vendor', 'katex')),

@@ -8,7 +8,7 @@ class FormulaOptions(QWidget):
         form = QFormLayout(self)
         form.setContentsMargins(0, 0, 0, 0)
         self.mode = QComboBox()
-        choices = ([('沿用模板', None), ('Word 可编辑公式', 'omml'),
+        choices = ([('Word 可编辑公式', 'omml'),
                     ('PNG 图片（KaTeX）', 'image'), ('LaTeX 源码', 'text')] if target == 'word'
                    else [('LaTeX', 'latex'), ('PNG 图片（KaTeX）', 'image')])
         for title, value in choices:

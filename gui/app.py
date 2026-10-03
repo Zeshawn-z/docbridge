@@ -60,6 +60,22 @@ def selftest(output: str | None = None, conversion_input: str | None = None) -> 
         window = MainWindow()
         window.resize(1280, 900)
         prepare(window)
+        # Verify the shared dialog and bundled SVG inside the frozen app too.
+        from pathlib import Path
+        from PySide6.QtSvg import QSvgRenderer
+        from .layout_editor import AdvancedOptions
+        from .styles import _check
+        if not QSvgRenderer(_check).isValid():
+            raise RuntimeError('勾选图标资源无法加载')
+        dialog = AdvancedOptions(None, {}, window, text_only=True)
+        dialog.categories.setCurrentRow(dialog.FONT_PAGE)
+        dialog.element_flags['bold'].setChecked(True)
+        prepare(dialog)
+        layout_target = str(Path(target).with_suffix('.layout.png'))
+        if not dialog.grab().save(layout_target):
+            raise RuntimeError('排版设置弹窗无法渲染')
+        dialog.close()
+        log('layout-settings=OK')
         if conversion_input:
             import time
             from pathlib import Path

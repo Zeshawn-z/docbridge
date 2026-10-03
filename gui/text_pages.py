@@ -80,8 +80,8 @@ class TextPage(QWidget):
 class PasteToWordPage(TextPage):
     def __init__(self, feature, parent=None):
         super().__init__(feature, parent)
-        self.template = None
-        self.overrides = {}
+        from .report_options import ReportOptions
+        self.options = ReportOptions(self, text_only=True, overrides={'markdown.emphasis_as_bold': False})
         self.last_directory = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
         frame, content = card()
         toolbar = QHBoxLayout()
@@ -102,10 +102,8 @@ class PasteToWordPage(TextPage):
         content.addWidget(self.editor, 1)
         self.layout.addWidget(frame, 1)
         actions = QHBoxLayout()
-        self.settings_button = QPushButton('排版设置')
-        self.settings_button.setIcon(icon('settings'))
-        self.settings_button.clicked.connect(self.edit_layout)
-        actions.addWidget(self.settings_button)
+        self.settings_button = self.options.details_button
+        actions.addWidget(self.options)
         actions.addStretch()
         self.open_button = QPushButton('打开 Word')
         self.open_button.setIcon(icon('file'))
@@ -138,10 +136,7 @@ class PasteToWordPage(TextPage):
         self.open_button.setVisible(self.result is not None)
 
     def edit_layout(self):
-        from .layout_editor import AdvancedOptions
-        dialog = AdvancedOptions(self.template, self.overrides, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.overrides = dialog.values
+        self.options.show_advanced()
 
     def suggested_name(self):
         text = unwrap_markdown(self.editor.toPlainText())
@@ -166,7 +161,7 @@ class PasteToWordPage(TextPage):
         if output.suffix.lower() != '.docx':
             output = Path(str(output) + '.docx')
         self.last_directory = str(output.parent)
-        text, template, overrides = self.editor.toPlainText(), self.template, dict(self.overrides)
+        text, template, overrides = self.editor.toPlainText(), self.options.template_path(), self.options.overrides()
         self.run_operation(lambda: write_docx(text, output, template=template, overrides=overrides, overwrite=True), self.saved)
 
     def saved(self, result):

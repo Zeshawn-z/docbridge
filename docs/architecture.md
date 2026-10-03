@@ -14,7 +14,7 @@
 | `features/markdown_to_word.py` | Markdown 排版选项与原 Word 排版引擎适配 |
 | `features/word_to_markdown.py` | Word 导出适配 |
 | `file_inputs.py` | 文件与目录收集，不依赖任何转换引擎 |
-| `report_options.py`、`layout_editor.py` | Markdown 转 Word 专用排版设置 |
+| `report_options.py`、`layout_editor.py` | 两个 Word 写入页面共用的排版入口与弹窗，各自持有模板和修改项 |
 | `src/docx2md/legacy.py` | `.doc` 转换引擎查找与调用，不依赖 Qt |
 | `src/docx2md/runtime.py` | 用户主动触发的下载、SHA-256 校验、文件准备与本地缓存 |
 | `doc_options.py` | `.doc 支持`页与独立下载线程 |
@@ -36,7 +36,13 @@
 CLI 的 `--text` / `--stdin` / `-` 和 `--stdout` 共用这些接口。
 
 功能可选提供 `create_output_options(parent)`，返回带 `values()` 的控件；任务页面将其值合入
-后台参数快照，转换开始后锁定该控件。公式格式通过这个接口接入，两边保持独立。
+后台参数快照，转换开始后锁定该控件。Word 读取的公式格式通过这个接口接入；Word 写入的公式格式
+位于排版弹窗中，使用 `math.mode` 配置，不在输出页重复展示。
+
+排版弹窗使用模板配置叠加修改项计算实际值，再回填控件。程序回填不触发修改信号，因此查看或
+切换样式不会把模板默认值固定成逐元素覆盖。布尔控件为双态复选框，显式取消勾选会保存 `false`。
+模板选择、导入和导出集中在“模板”分类，换模板会重建基准配置并清除旧的修改项；对话框取消
+不会改变所属页面。高级 YAML 显示完整实际配置，通过差异保存修改项。复选框勾选图形由本地 SVG 提供。
 
 ## 公式后端
 

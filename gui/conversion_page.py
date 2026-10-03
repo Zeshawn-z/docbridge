@@ -175,6 +175,10 @@ class ConversionPage(QWidget):
         self.overwrite = QCheckBox('覆盖已有转换结果')
         settings.addWidget(self.overwrite)
         self.overwrite.setToolTip('未勾选时，重名结果自动添加编号。')
+        self.options = self.feature.create_options(self)
+        if self.options is not None and self.feature.settings_label is None:
+            settings.addSpacing(8)
+            settings.addWidget(self.options)
         create_output_options = getattr(self.feature, 'create_output_options', None)
         self.output_options = create_output_options(self) if create_output_options else None
         if self.output_options is not None:
@@ -185,11 +189,10 @@ class ConversionPage(QWidget):
         mode_page = QWidget()
         mode_layout = QVBoxLayout(mode_page)
         mode_layout.setContentsMargins(6, 12, 6, 8)
-        self.options = self.feature.create_options(self)
-        if self.options is not None:
+        if self.options is not None and self.feature.settings_label is not None:
             mode_layout.addWidget(self.options)
         mode_layout.addStretch()
-        if self.options is not None:
+        if self.options is not None and self.feature.settings_label is not None:
             self.settings_tabs.addTab(mode_page, self.feature.settings_label)
         self.settings_tabs.addTab(output_page, '输出')
         self.settings_tabs.setCurrentIndex(getattr(self.feature, 'default_settings_tab', 0))
